@@ -1,0 +1,33 @@
+name: MM Dropship Collector
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Collect Dropship.io products
+        env:
+          MM_SUPABASE_URL: ${{ secrets.MM_SUPABASE_URL }}
+          MM_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.MM_SUPABASE_SERVICE_ROLE_KEY }}
+          DROPSHIP_STORAGE_STATE_B64: ${{ secrets.DROPSHIP_STORAGE_STATE_B64 }}
+          DROPSHIP_MARKET: US
+          DROPSHIP_MAX_PRODUCTS: '100'
+        run: node scripts/dropship-collector.mjs
