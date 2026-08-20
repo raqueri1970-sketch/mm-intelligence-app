@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from './lib/supabase'
+import { supabase } from '../lib/supabase'
 
 function Ring({ score, size = 48 }: { score:number; size?:number }) {
   const r=(size-6)/2, circ=2*Math.PI*r, fill=(Math.min(score,100)/100)*circ
