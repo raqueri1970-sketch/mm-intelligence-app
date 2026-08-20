@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://tazyeczbbgspqbyluynf.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoidGF6eWVjemJiZ3NwcWJ5bHV5bmYiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4NDU3MDU4MCwiZXhwIjoyMTAwMTQ2NTgwfQ.ui9Sd_6uPuAhnXr1BtcgjzimzhcG1Eittdvm9X9cNe4'
+const supabaseKey = 'sb_publishable_olCaCIksSYJGOaAYInXHeA_2pm-gaoF'
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export type Product = {
-  id: number
+  id: string
   name: string
   name_es: string
   niche: string
@@ -39,8 +39,8 @@ export type Product = {
 }
 
 export type Alert = {
-  id: number
-  product_id: number
+  id: string
+  product_id: string
   type: string
   title: string
   message: string
