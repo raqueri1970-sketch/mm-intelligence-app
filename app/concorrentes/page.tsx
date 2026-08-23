@@ -30,10 +30,28 @@ export default function ConcorrentesPage(){
   async function addStore(e:React.FormEvent){
     e.preventDefault();if(!url.trim())return
     setLoading(true);setMessage('Analisando a loja e lendo o catálogo público...')
-    const {data,error}=await supabase.functions.invoke('mm-store-radar',{body:{action:'add_store',url:url.trim(),marketCode:market}})
-    if(error){setMessage('Não foi possível adicionar: '+error.message)}
-    else if(data?.ok){setMessage(`Loja adicionada. ${data.products_found||0} produtos encontrados. Vendas serão tratadas como estimativa quando não houver dado público.`);setUrl('');setSelected(data.store_id||null);await load()}
-    else setMessage(data?.error||'Não foi possível analisar a loja.')
+    const rawUrl=url.trim()
+    const {data,error}=await supabase.functions.invoke('mm-store-radar',{body:{action:'add_store',url:rawUrl,marketCode:market}})
+    if(!error&&data?.ok){
+      setMessage(`Loja adicionada. ${data.products_found||0} produtos encontrados. Vendas serão tratadas como estimativa quando não houver dado público.`)
+      setUrl('');setSelected(data.store_id||null);await load()
+    }else{
+      try{
+        const normalized=/^https?:\\/\\//i.test(rawUrl)?rawUrl:`https://${rawUrl}`
+        const parsed=new URL(normalized)
+        const domain=parsed.hostname.replace(/^www\\./,'').toLowerCase()
+        const {data:fallback,error:fallbackError}=await supabase.from('mm_store_watchlist').upsert({
+          domain,store_name:domain,market_code:market,platform:'Ecommerce',
+          discovery_source:'Manual URL',status:'WATCHING',priority_score:50,growth_score:50,
+          last_seen_at:new Date().toISOString(),metadata:{url:`${parsed.protocol}//${parsed.host}`,manual:true,pendingCollection:true}
+        },{onConflict:'domain,market_code'}).select('id').single()
+        if(fallbackError)throw fallbackError
+        setMessage('Loja adicionada à vigilância. A leitura do catálogo ficou pendente e será refeita automaticamente.')
+        setUrl('');setSelected(fallback?.id||null);await load()
+      }catch(fallbackError:any){
+        setMessage('Não foi possível adicionar: '+(data?.error||error?.message||fallbackError?.message||'erro desconhecido'))
+      }
+    }
     setLoading(false)
   }
 
