@@ -37,9 +37,9 @@ export default function ConcorrentesPage(){
       setUrl('');setSelected(data.store_id||null);await load()
     }else{
       try{
-        const normalized=/^https?:\\/\\//i.test(rawUrl)?rawUrl:`https://${rawUrl}`
+        const normalized=/^https?:\/\//i.test(rawUrl)?rawUrl:`https://${rawUrl}`
         const parsed=new URL(normalized)
-        const domain=parsed.hostname.replace(/^www\\./,'').toLowerCase()
+        const domain=parsed.hostname.replace(/^www\./,'').toLowerCase()
         const {data:fallback,error:fallbackError}=await supabase.from('mm_store_watchlist').upsert({
           domain,store_name:domain,market_code:market,platform:'Ecommerce',
           discovery_source:'Manual URL',status:'WATCHING',priority_score:50,growth_score:50,
