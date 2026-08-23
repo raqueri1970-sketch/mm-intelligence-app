@@ -37,6 +37,7 @@ export default function ProdutosPage(){
   const [search,setSearch]=useState('')
   const [filter,setFilter]=useState('all')
   const [niche,setNiche]=useState('all')
+  const [photo,setPhoto]=useState<any|null>(null)
 
   useEffect(()=>{
     let active=true
@@ -84,7 +85,7 @@ export default function ProdutosPage(){
         <td style={{minWidth:250}}>
           <Link href={'/produtos/'+p.id} style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none'}}>
             {p.image_url ? (
-              <img src={p.image_url} alt={p.name} style={{width:46,height:46,borderRadius:8,objectFit:'contain',background:'#fff',border:'1px solid var(--border)',flexShrink:0}}/>
+              <img src={p.image_url} alt={p.name} onClick={e=>{e.preventDefault();e.stopPropagation();setPhoto(p)}} title="Clique para ampliar" style={{width:58,height:58,borderRadius:8,objectFit:'contain',background:'#fff',border:'1px solid var(--border)',flexShrink:0,cursor:'zoom-in'}}/>
             ) : (
               <div style={{width:46,height:46,borderRadius:8,background:'var(--bg3)',border:'1px dashed var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>
             )}
@@ -115,6 +116,17 @@ export default function ProdutosPage(){
         </td>
       </tr>)}
     </tbody></table></div></div>
+
+    {photo&&<div onClick={()=>setPhoto(null)} style={{position:'fixed',inset:0,zIndex:2000,background:'rgba(0,0,0,.86)',display:'grid',placeItems:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{position:'relative',width:'min(820px,96vw)',maxHeight:'92vh',background:'var(--card)',border:'1px solid var(--border)',borderRadius:14,padding:16,boxShadow:'0 24px 80px rgba(0,0,0,.55)'}}>
+        <button onClick={()=>setPhoto(null)} aria-label="Fechar imagem" style={{position:'absolute',right:10,top:8,zIndex:2,width:36,height:36,borderRadius:'50%',border:'1px solid var(--border)',background:'rgba(10,10,18,.86)',color:'#fff',fontSize:24,cursor:'pointer'}}>×</button>
+        <img src={photo.image_url} alt={photo.name} style={{display:'block',width:'100%',height:'min(68vh,680px)',objectFit:'contain',background:'#fff',borderRadius:10}}/>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginTop:12,flexWrap:'wrap'}}>
+          <div><div style={{fontWeight:800,fontSize:16,color:'var(--text)'}}>{photo.name}</div><div style={{fontSize:10,color:'#34d399',fontFamily:'var(--mono)',marginTop:3}}>Foto real validada</div></div>
+          <a href={photo.store_url} target="_blank" rel="noopener noreferrer" style={{padding:'9px 13px',borderRadius:8,background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.4)',color:'#34d399',fontWeight:800,textDecoration:'none',fontSize:11}}>ABRIR ITEM ↗</a>
+        </div>
+      </div>
+    </div>}
 
     <div style={{marginTop:12,padding:'10px 16px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,fontSize:11,color:'var(--text3)',fontFamily:'var(--mono)'}}>
       Foto e link verde são dados do item validado. Meta/TikTok são apenas pesquisas auxiliares e não substituem o link real do produto.
