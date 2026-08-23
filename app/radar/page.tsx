@@ -2,44 +2,38 @@
 import {useEffect,useMemo,useState} from 'react'
 import {supabase} from '@/lib/supabase'
 
-type Opportunity={
- id:string;query:string;market_code:string;domain?:string;subgroup?:string;
- opportunity_score:number;demand_score:number;momentum_score:number;commercial_score:number;
- saturation_score:number;novelty_score:number;sources_count:number;data_quality_pct:number;
- status:string;evidence?:any;created_at:string
+type Product={
+ id:string;name:string;signal_query:string;market_code:string;source_name?:string;competitor_name?:string;
+ store_url:string;image_url:string;price?:number;currency?:string;verified_at:string;rating?:number;reviews?:number;
+ sales_status?:string;opportunity_score:number;demand_score:number;momentum_score:number;commercial_score:number;
+ sources_count:number;data_quality_pct:number;status:string
 }
 
-function findEvidenceImage(value:any,depth=0):string|undefined{
- if(!value||depth>5)return undefined
- if(typeof value==='string'&&/^https?:\/\//i.test(value)&&/\.(jpe?g|png|webp|avif)(\?|$)/i.test(value))return value
- if(Array.isArray(value)){for(const item of value){const found=findEvidenceImage(item,depth+1);if(found)return found}}
- if(typeof value==='object'){
-  const preferred=['image_url','imageUrl','thumbnail','thumbnail_url','photo','image','src']
-  for(const key of preferred){const found=findEvidenceImage(value[key],depth+1);if(found)return found}
-  for(const item of Object.values(value)){const found=findEvidenceImage(item,depth+1);if(found)return found}
- }
- return undefined
-}
-function radarImage(r:Opportunity){return findEvidenceImage(r.evidence)||`https://tse2.mm.bing.net/th?q=${encodeURIComponent(r.query+' physical product')}&w=240&h=240&c=7&rs=1&p=0`}
-function RadarPhoto({row,large=false}:{row:Opportunity;large?:boolean}){return <img src={radarImage(row)} alt={`Referência visual de ${row.query}`} loading="lazy" referrerPolicy="no-referrer" style={{width:large?'min(420px,100%)':58,height:large?300:58,objectFit:'cover',borderRadius:large?12:10,border:'1px solid var(--border)',background:'var(--bg3)',display:'block'}}/>}
-
-function Score({value}:{value:number}){const n=Math.round(Number(value||0)),c=n>=75?'#34d399':n>=55?'#fbbf24':'#fb7185';return <span style={{display:'inline-grid',placeItems:'center',width:42,height:42,borderRadius:'50%',border:`3px solid ${c}`,color:c,fontWeight:900,fontFamily:'var(--mono)'}}>{n}</span>}
+function Score({value}:{value:number}){const n=Math.round(Number(value||0)),c=n>=75?'#34d399':n>=55?'#fbbf24':'#fb7185';return <span style={{display:'inline-grid',placeItems:'center',width:44,height:44,borderRadius:'50%',border:`3px solid ${c}`,color:c,fontWeight:800,fontFamily:'var(--mono)'}}>{n}</span>}
+function money(value?:number,currency='USD'){if(value==null)return 'Preço não capturado';try{return new Intl.NumberFormat('en-US',{style:'currency',currency}).format(value)}catch{return '$'+value}}
+function evidence(p:Product){if(p.sales_status&& !['NOT_AVAILABLE','UNKNOWN'].includes(p.sales_status))return 'Venda pública confirmada';if(Number(p.reviews)>0)return `${Number(p.reviews).toLocaleString('pt-BR')} avaliações públicas`;return 'Evidência insuficiente'}
 
 export default function RadarPage(){
- const [rows,setRows]=useState<Opportunity[]>([])
+ const [rows,setRows]=useState<Product[]>([])
  const [market,setMarket]=useState('US')
  const [search,setSearch]=useState('')
  const [loading,setLoading]=useState(true)
  const [refreshing,setRefreshing]=useState(false)
  const [error,setError]=useState('')
- const [selected,setSelected]=useState<Opportunity|null>(null)
+ const [selected,setSelected]=useState<Product|null>(null)
 
  async function load(){
   setLoading(true);setError('')
-  const {data,error}=await supabase.functions.invoke('mm-dashboard-api',{body:{action:'radar',marketCode:market}})
-  if(error)setError(error.message)
-  else setRows((data?.opportunities||[]) as Opportunity[])
-  setLoading(false)
+  const {data,error}=await supabase.functions.invoke('mm-dashboard-api',{body:{action:'real-products',marketCode:market,limit:200}})
+  if(error){setError(error.message);setRows([]);setLoading(false);return}
+  const candidates=(data?.products||[]).filter((p:Product)=>p.name&&p.image_url&&p.store_url&&(Number(p.reviews)>0||(p.sales_status&&!['NOT_AVAILABLE','UNKNOWN'].includes(p.sales_status))))
+  const checked=await Promise.all(candidates.map((p:Product)=>new Promise<Product|null>(resolve=>{
+   const img=new Image(),timer=window.setTimeout(()=>resolve(null),7000)
+   img.onload=()=>{window.clearTimeout(timer);resolve(img.naturalWidth>0&&img.naturalHeight>0?p:null)}
+   img.onerror=()=>{window.clearTimeout(timer);resolve(null)}
+   img.src=p.image_url
+  })))
+  setRows(checked.filter(Boolean) as Product[]);setLoading(false)
  }
  useEffect(()=>{load()},[market])
 
@@ -50,55 +44,57 @@ export default function RadarPage(){
   await load();setRefreshing(false)
  }
 
- const filtered=useMemo(()=>rows.filter(r=>!search||r.query.toLowerCase().includes(search.toLowerCase())||(r.subgroup||'').toLowerCase().includes(search.toLowerCase())),[rows,search])
- const latest=rows.length?new Date(Math.max(...rows.map(r=>new Date(r.created_at).getTime()))):null
- const avg=(key:keyof Opportunity)=>rows.length?Math.round(rows.reduce((s,r)=>s+Number(r[key]||0),0)/rows.length):0
+ const filtered=useMemo(()=>rows.filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||p.signal_query?.toLowerCase().includes(search.toLowerCase())),[rows,search])
+ const avg=rows.length?Math.round(rows.reduce((s,p)=>s+Number(p.opportunity_score||0),0)/rows.length):0
+ const totalReviews=rows.reduce((s,p)=>s+Number(p.reviews||0),0)
+ const latest=rows.length?new Date(Math.max(...rows.map(p=>new Date(p.verified_at).getTime()))):null
 
- if(loading)return <div className="mm-loading"><div className="mm-spinner"/>Carregando radar...</div>
+ if(loading)return <div className="mm-loading"><div className="mm-spinner"/>Validando produtos reais...</div>
 
  return <div className="mm-fade-in">
   <div className="mm-page-header" style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'end',flexWrap:'wrap'}}>
-   <div><h1 className="mm-page-title">Radar de Oportunidades</h1><p className="mm-page-subtitle">Termos amplos da web · produtos específicos aparecem somente após validação</p></div>
-   <button onClick={refresh} disabled={refreshing} style={{height:42,padding:'0 16px',border:0,borderRadius:9,background:'var(--purple)',color:'#fff',fontWeight:800,cursor:refreshing?'wait':'pointer'}}>{refreshing?'ATUALIZANDO...':'ATUALIZAR AGORA'}</button>
+   <div><h1 className="mm-page-title">Radar de Produtos Reais</h1><p className="mm-page-subtitle">Somente item específico · foto real · link direto · evidência pública de mercado</p></div>
+   <button onClick={refresh} disabled={refreshing} style={{height:42,padding:'0 16px',border:0,borderRadius:9,background:'var(--purple)',color:'#fff',fontWeight:700,cursor:refreshing?'wait':'pointer'}}>{refreshing?'ATUALIZANDO...':'ATUALIZAR AGORA'}</button>
   </div>
 
   <div style={{display:'flex',gap:8,marginBottom:14,flexWrap:'wrap'}}>
-   <input className="mm-search" placeholder="🔍 Buscar termo ou nicho..." value={search} onChange={e=>setSearch(e.target.value)}/>
-   <select className="mm-search" style={{width:150}} value={market} onChange={e=>setMarket(e.target.value)}><option value="US">🇺🇸 Estados Unidos</option><option value="MX">🇲🇽 México</option></select>
+   <input className="mm-search" placeholder="🔍 Buscar produto real..." value={search} onChange={e=>setSearch(e.target.value)}/>
+   <select className="mm-search" style={{width:170}} value={market} onChange={e=>setMarket(e.target.value)}><option value="US">🇺🇸 Estados Unidos</option><option value="MX">🇲🇽 México</option></select>
   </div>
-
   {error&&<div style={{padding:12,marginBottom:14,border:'1px solid rgba(251,113,133,.4)',borderRadius:8,color:'#fb7185',background:'rgba(251,113,133,.08)'}}>{error}</div>}
 
-  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:16}}>
+  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:10,marginBottom:16}}>
    {[
-    ['Oportunidades',rows.length,'#a78bfa'],['Score médio',avg('opportunity_score'),'#34d399'],['Demanda',avg('demand_score'),'#60a5fa'],['Momentum',avg('momentum_score'),'#fbbf24'],['Qualidade',avg('data_quality_pct')+'%','#c084fc']
-   ].map(([l,v,c])=><div key={String(l)} className="mm-card" style={{padding:14}}><div style={{fontSize:24,fontWeight:900,color:String(c),fontFamily:'var(--mono)'}}>{v}</div><div style={{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginTop:4}}>{l}</div></div>)}
+    ['Produtos reais',rows.length,'#a78bfa'],['Score médio',avg,'#34d399'],['Avaliações públicas',totalReviews.toLocaleString('pt-BR'),'#60a5fa'],['Com foto',rows.length,'#fbbf24'],['Com link direto',rows.length,'#c084fc']
+   ].map(([l,v,c])=><div key={String(l)} className="mm-card" style={{padding:14}}><div style={{fontSize:23,fontWeight:800,color:String(c),fontFamily:'var(--mono)'}}>{v}</div><div style={{fontSize:10,color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginTop:4}}>{l}</div></div>)}
   </div>
 
-  <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginBottom:10}}>Última descoberta: {latest?latest.toLocaleString('pt-BR'):'sem dados'} · mostrando {filtered.length}</div>
+  <div style={{fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',marginBottom:10}}>Última verificação: {latest?latest.toLocaleString('pt-BR'):'sem dados'} · mostrando {filtered.length}</div>
 
-  <div className="mm-card"><div className="mm-table-wrap"><table className="mm-table"><thead><tr><th>#</th><th>Foto</th><th>Termo pesquisado</th><th>Mercado</th><th>Score</th><th>Demanda</th><th>Momentum</th><th>Comercial</th><th>Fontes</th><th>Qualidade</th><th>Status</th></tr></thead><tbody>
-   {!filtered.length?<tr><td colSpan={11} style={{textAlign:'center',padding:40,color:'var(--text3)'}}>Nenhuma oportunidade encontrada.</td></tr>:filtered.map((r,i)=><tr key={r.id} onClick={()=>setSelected(r)} style={{cursor:'pointer'}}>
+  <div className="mm-card"><div className="mm-table-wrap"><table className="mm-table"><thead><tr><th>#</th><th>Produto real</th><th>Score</th><th>Evidência de mercado</th><th>Avaliação</th><th>Preço</th><th>Loja/Fonte</th><th>Verificado</th><th>Link</th></tr></thead><tbody>
+   {!filtered.length?<tr><td colSpan={9} style={{textAlign:'center',padding:40,color:'var(--text3)'}}>Nenhum produto cumpriu todas as regras: item específico, foto, link e evidência pública.</td></tr>:filtered.map((p,i)=><tr key={p.id}>
     <td style={{fontFamily:'var(--mono)',color:'var(--text3)'}}>{String(i+1).padStart(2,'0')}</td>
-    <td onClick={e=>{e.stopPropagation();setSelected(r)}}><RadarPhoto row={r}/></td>
-    <td style={{minWidth:250}}><div style={{fontWeight:800,color:'var(--text)',fontSize:13}}>{r.query}</div><div style={{fontSize:10,color:'var(--text3)',marginTop:3}}>{r.subgroup||r.domain||'Saúde & Beleza'} · termo de descoberta</div></td>
-    <td><span className="mm-niche">{r.market_code}</span></td>
-    <td><Score value={r.opportunity_score}/></td>
-    <td>{Math.round(Number(r.demand_score||0))}</td><td>{Math.round(Number(r.momentum_score||0))}</td><td>{Math.round(Number(r.commercial_score||0))}</td>
-    <td>{r.sources_count||0}</td><td>{r.data_quality_pct||0}%</td>
-    <td><span className={'mm-status mm-status--'+(r.status==='OBSERVAR'?'testing':'new')}>{r.status}</span></td>
+    <td style={{minWidth:360}}><div style={{display:'flex',alignItems:'center',gap:12}}>
+     <img src={p.image_url} alt={p.name} onClick={()=>setSelected(p)} title="Clique para ampliar" style={{width:68,height:68,objectFit:'contain',background:'#fff',borderRadius:10,border:'1px solid var(--border)',cursor:'zoom-in',flexShrink:0}}/>
+     <div><div style={{fontWeight:700,color:'var(--text)',fontSize:13,lineHeight:1.35}}>{p.name}</div><div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>{p.signal_query} · {p.market_code}</div></div>
+    </div></td>
+    <td><Score value={p.opportunity_score}/></td>
+    <td><span className={'mm-status '+(p.status==='VENDA_CONFIRMADA'?'mm-status--winner':p.status==='FORTE'?'mm-status--testing':'mm-status--new')}>{evidence(p)}</span></td>
+    <td style={{fontFamily:'var(--mono)',fontSize:11}}>{p.rating?<>★ {Number(p.rating).toFixed(1)}<br/><span style={{color:'var(--text3)'}}>{Number(p.reviews).toLocaleString('pt-BR')} reviews</span></>:'—'}</td>
+    <td style={{fontFamily:'var(--mono)',fontSize:11,color:p.price?'#34d399':'var(--text3)'}}>{money(p.price,p.currency)}</td>
+    <td style={{fontSize:11}}><b>{p.competitor_name||p.source_name||'Web'}</b><div style={{fontSize:9,color:'var(--text3)',marginTop:3}}>{p.source_name}</div></td>
+    <td style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text3)'}}>{new Date(p.verified_at).toLocaleDateString('pt-BR')}</td>
+    <td><a href={p.store_url} target="_blank" rel="noopener noreferrer" title="Abrir produto real" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',height:32,padding:'0 10px',borderRadius:7,background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.35)',color:'#34d399',fontWeight:800,textDecoration:'none',fontSize:10}}>VER ITEM ↗</a></td>
    </tr>)}
   </tbody></table></div></div>
 
-  {selected&&<div onClick={()=>setSelected(null)} style={{position:'fixed',inset:0,zIndex:2000,background:'rgba(0,0,0,.78)',display:'grid',placeItems:'center',padding:18}}>
-   <div onClick={e=>e.stopPropagation()} className="mm-card" style={{width:'min(680px,96vw)',maxHeight:'86vh',overflow:'auto',padding:20}}>
-    <div style={{display:'flex',justifyContent:'space-between',gap:12}}><div><h2 style={{margin:0,fontSize:20}}>{selected.query}</h2><div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>{selected.market_code} · termo amplo do Radar</div></div><button onClick={()=>setSelected(null)} style={{border:0,background:'transparent',color:'#fff',fontSize:25,cursor:'pointer'}}>×</button></div>
-    <div style={{display:'grid',placeItems:'center',marginTop:18}}><RadarPhoto row={selected} large/><div style={{fontSize:10,color:'var(--text3)',marginTop:7}}>Imagem de referência do termo pesquisado</div></div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:18}}>
-     {[['Oportunidade',selected.opportunity_score],['Demanda',selected.demand_score],['Momentum',selected.momentum_score],['Comercial',selected.commercial_score],['Saturação',selected.saturation_score],['Novidade',selected.novelty_score]].map(([l,v])=><div key={String(l)} style={{padding:12,background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8}}><b style={{fontSize:18}}>{Math.round(Number(v||0))}</b><div style={{fontSize:9,color:'var(--text3)',marginTop:3}}>{l}</div></div>)}
-    </div>
-    <p style={{fontSize:12,lineHeight:1.7,color:'var(--text2)'}}>Este registro mede uma oportunidade de pesquisa. Ele só será promovido para Produtos quando o MM identificar um item concreto com nome específico, foto carregável, link direto e identidade validada.</p>
-    <pre style={{fontSize:10,whiteSpace:'pre-wrap',color:'var(--text3)',background:'var(--bg2)',padding:12,borderRadius:8,overflow:'auto'}}>{JSON.stringify(selected.evidence||{},null,2)}</pre>
+  <div style={{padding:'11px 14px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:9,fontSize:11,color:'var(--text3)',lineHeight:1.6}}>Regra do Radar: produto genérico não entra. “Avaliações públicas” confirma atividade comercial e relevância, mas não representa unidades vendidas. Quantidade vendida só será exibida quando a plataforma publicar esse dado.</div>
+
+  {selected&&<div onClick={()=>setSelected(null)} style={{position:'fixed',inset:0,zIndex:2000,background:'rgba(0,0,0,.86)',display:'grid',placeItems:'center',padding:20}}>
+   <div onClick={e=>e.stopPropagation()} className="mm-card" style={{position:'relative',width:'min(820px,96vw)',maxHeight:'92vh',padding:16}}>
+    <button onClick={()=>setSelected(null)} aria-label="Fechar imagem" style={{position:'absolute',right:10,top:8,zIndex:2,width:36,height:36,borderRadius:'50%',border:'1px solid var(--border)',background:'rgba(10,10,18,.86)',color:'#fff',fontSize:24,cursor:'pointer'}}>×</button>
+    <img src={selected.image_url} alt={selected.name} style={{display:'block',width:'100%',height:'min(62vh,620px)',objectFit:'contain',background:'#fff',borderRadius:10}}/>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,marginTop:12,flexWrap:'wrap'}}><div><div style={{fontWeight:700,fontSize:15}}>{selected.name}</div><div style={{fontSize:10,color:'#34d399',marginTop:4}}>{evidence(selected)} · link direto validado</div></div><a href={selected.store_url} target="_blank" rel="noopener noreferrer" style={{padding:'9px 13px',borderRadius:8,background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.4)',color:'#34d399',fontWeight:800,textDecoration:'none',fontSize:11}}>ABRIR PRODUTO ↗</a></div>
    </div>
   </div>}
  </div>
