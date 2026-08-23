@@ -38,7 +38,23 @@ export default function ProdutosPage(){
   const [filter,setFilter]=useState('all')
   const [niche,setNiche]=useState('all')
 
-  useEffect(()=>{supabase.from('ranking_view').select('*').order('score_final',{ascending:false}).then(({data})=>{if(data)setProducts(data);setLoading(false)})},[])
+  useEffect(()=>{
+    let active=true
+    async function loadProducts(){
+      const {data}=await supabase.from('ranking_view').select('*').order('score_final',{ascending:false})
+      const candidates=(data||[]).filter(p=>p.image_url&&p.store_url&&p.asset_verified_at)
+      const validated=await Promise.all(candidates.map(p=>new Promise<any|null>(resolve=>{
+        const image=new Image()
+        const timer=window.setTimeout(()=>resolve(null),8000)
+        image.onload=()=>{window.clearTimeout(timer);resolve(image.naturalWidth>0&&image.naturalHeight>0?p:null)}
+        image.onerror=()=>{window.clearTimeout(timer);resolve(null)}
+        image.src=p.image_url
+      })))
+      if(active){setProducts(validated.filter(Boolean));setLoading(false)}
+    }
+    loadProducts()
+    return()=>{active=false}
+  },[])
 
   const niches=['all',...Array.from(new Set(products.map(p=>p.niche).filter(Boolean)))]
   const filtered=products.filter(p=>{
