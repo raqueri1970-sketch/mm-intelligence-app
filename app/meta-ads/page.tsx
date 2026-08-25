@@ -1,9 +1,7 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function MetaAdsPage() {
-  const params = useSearchParams()
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const connected = params.get('connected') === '1'
   const accounts = params.get('accounts')
   const accountName = params.get('account_name')
