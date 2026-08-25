@@ -18,10 +18,13 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set('scope', 'ads_read,ads_management,business_management')
 
   const res = NextResponse.redirect(authUrl)
+  // The OAuth callback is a top-level navigation back to the same MM host.
+  // Lax is the most reliable setting here and avoids browsers dropping the
+  // state cookie during the Facebook round-trip.
   res.cookies.set('mm_meta_oauth_state', state, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
     maxAge: 600,
     path: '/',
   })
