@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   res.cookies.set('mm_meta_oauth_state', state, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     maxAge: 600,
     path: '/',
   })
