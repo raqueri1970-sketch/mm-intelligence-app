@@ -1,0 +1,24 @@
+:root{
+  --bg:#060a0f;
+  --bg2:#09111a;
+  --bg3:#0d1722;
+  --card:#0b141e;
+  --border:rgba(125,211,252,.12);
+  --text:#eef5fb;
+  --text2:#b8cad8;
+  --text3:#71879a;
+  --purple:#0ea5e9;
+  --purple2:#38bdf8;
+  --purple3:#22d3ee;
+  --green:#22c55e;
+  --amber:#f59e0b;
+  --accent-rgb:56,189,248;
+}
+html,body{background:var(--bg)}
+.mm-sidebar,.mm-topbar{background:var(--bg2)}
+.mm-logo__mark{background:linear-gradient(135deg,#38bdf8,#14b8a6)!important}
+.mm-nav__item--active{color:#67e8f9!important;background:rgba(14,165,233,.10)!important}
+.mm-nav__active-bar{background:#22d3ee!important}
+.mm-lang__pill--active{background:rgba(14,165,233,.16)!important;border-color:#0ea5e9!important;color:#67e8f9!important}
+.mm-niche{background:rgba(14,165,233,.10)!important;color:#7dd3fc!important;border-color:rgba(14,165,233,.22)!important}
+.mm-status--new{background:rgba(14,165,233,.12)!important;color:#7dd3fc!important}
