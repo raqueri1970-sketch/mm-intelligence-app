@@ -1,9 +1,4 @@
-"""MM Intelligence — Google Trends collector.
-
-Collect Google Trends intelligence for physical-product discovery and persist
-signals to Supabase. The workflow must fail if collection or persistence fails,
-so a green GitHub Action always means data was actually written.
-"""
+"""MM Intelligence — Google Trends collector for the United States."""
 import json
 import os
 import time
@@ -27,7 +22,7 @@ SEEDS = [
     "skin care device",
     "home beauty device",
 ]
-REGIONS = ["US", "MX"]
+REGIONS = ["US"]
 BLOCKED = ("capsule", "capsules", "supplement", "course", "ebook", "pdf", "training program")
 
 
