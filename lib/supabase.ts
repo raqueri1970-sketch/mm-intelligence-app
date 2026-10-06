@@ -35,6 +35,10 @@ export type Product = {
   ai_hook_en: string
   ai_hook_es: string
   ai_cpa_note: string
+  data_quality_pct: number | null
+  sources_count: number | null
+  final_decision: string | null
+  asset_verified_at: string | null
   created_at: string
 }
 
