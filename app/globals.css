@@ -256,4 +256,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   .mm-sidebar { width: var(--sidebar-collapsed); }
   .mm-main { margin-left: var(--sidebar-collapsed); }
   .mm-content { padding: 16px; }
+  .mm-nav__label, .mm-logo__text, .mm-lang, .mm-topbar__stores, .mm-collapse { display: none; }
+  .mm-main { min-width: 0; overflow-x: hidden; }
+  .mm-page-title { font-size: 20px; }
+  .mm-page-subtitle { overflow-wrap: anywhere; }
 }

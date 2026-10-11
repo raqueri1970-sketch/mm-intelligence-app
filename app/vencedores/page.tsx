@@ -93,14 +93,14 @@ export default function RadarPage() {
    </p>
   </div>
 
-  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
    {(['US', 'MX'] as const).map(p => <button key={p} onClick={() => { setPais(p); setUniverso(''); setClasse('todas') }} className="mm-card"
     style={{ padding: '8px 16px', cursor: 'pointer', fontWeight: 800, border: pais === p ? '1px solid var(--purple)' : undefined, color: pais === p ? 'var(--purple3)' : 'var(--text2)' }}>
     {p === 'US' ? 'Estados Unidos (principal)' : 'México (secundário)'} · {rows.filter(r => r.pais === p).length}
    </button>)}
   </div>
 
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10, marginBottom: 14 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(150px,46%),1fr))', gap: 10, marginBottom: 14 }}>
    {kpis.map(([rotulo, valor, f, cor]) => <button key={rotulo} onClick={() => setClasse(classe === f ? 'todas' : f)} className="mm-card"
     style={{ padding: 14, textAlign: 'left', cursor: 'pointer', border: classe === f ? `1px solid ${cor}` : undefined }}>
     <div style={{ fontSize: 26, fontWeight: 800, color: cor }}>{valor}</div>
@@ -123,7 +123,7 @@ export default function RadarPage() {
    <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Dores crescendo agora — Google Trends {pais} ({doresPais.length} dores com volume suficiente) e buscas novas em alta</summary>
    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>Crescimento = média do último mês vs primeiro mês (3 meses). Dores com interesse médio abaixo de 10 ficam de fora: volume baixo demais para confirmar tendência.</div>
    {!doresPais.length && <div style={{ color: 'var(--text3)', fontSize: 13, marginTop: 8 }}>Ainda sem medição das dores deste país. O Google Trends roda todo dia e mede cada dor a cada 6 dias.</div>}
-   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 6, marginTop: 10 }}>
+   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(240px,100%),1fr))', gap: 6, marginTop: 10 }}>
     {doresPais.slice(0, 40).map(d => <div key={d.termo} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,.04)', borderRadius: 6, padding: '5px 8px' }}>
      <span>{d.termo}{d.universo && <span style={{ color: 'var(--text3)' }}> · {curto(d.universo)}</span>}</span>
      <b style={{ color: (d.crescimento_pct || 0) > 0 ? '#34d399' : '#fb7185' }}>{(d.crescimento_pct || 0) > 0 ? '+' : ''}{Number(d.crescimento_pct).toFixed(0)}%</b>
@@ -138,7 +138,7 @@ export default function RadarPage() {
 
   {!loading && !lista.length && <div className="mm-card" style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Nenhum produto nesta seleção. A coleta roda todo dia de madrugada.</div>}
 
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(320px,100%),1fr))', gap: 14 }}>
    {lista.map((r, i) => {
     const an = [...(r.anunciantes || [])].sort((a, b) => b.anuncios_ativos - a.anuncios_ativos)
     const exp = aberto === r.chave
