@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'collectors/google_trends_collector.py'
+      - 'collectors/universos_mm.json'
       - 'requirements-trends.txt'
       - '.github/workflows/google-trends.yml'
   schedule:

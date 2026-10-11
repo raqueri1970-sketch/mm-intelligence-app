@@ -1,0 +1,43 @@
+{
+ "_nota": "Dores/desejos do método MM (Ricardo, 11/10/2026). en = busca nos EUA, es = busca no México. A mesma lista alimenta o robô da Meta (VPS) e o Google Trends (GitHub). Lista aberta: termos novos podem ser adicionados a qualquer universo.",
+ "U1 Dores, ortopedia e recuperação": {
+  "en": ["neck pain", "back pain relief", "lower back pain", "sciatica relief", "knee pain", "joint pain", "arthritis pain", "shoulder pain", "wrist pain", "hand pain", "heel pain", "muscle pain relief", "fibromyalgia", "muscle recovery", "posture corrector", "spine support", "ergonomic support"],
+  "es": ["dolor de cuello", "dolor de espalda", "dolor lumbar", "ciática", "dolor de rodilla", "dolor de articulaciones", "artritis", "dolor de hombro", "dolor muscular", "fibromialgia", "corrector de postura"]
+ },
+ "U2 Sono e respiração": {
+  "en": ["insomnia", "can't sleep", "better sleep", "snoring", "stop snoring", "mouth tape", "nasal breathing", "nasal congestion relief", "dry mouth at night", "side sleeper pillow", "cervical pillow", "sleep mask"],
+  "es": ["insomnio", "no puedo dormir", "ronquidos", "dejar de roncar", "almohada cervical", "respirar mejor"]
+ },
+ "U3 Pele e skincare": {
+  "en": ["wrinkles", "fine lines", "anti aging device", "sagging skin", "neck wrinkles", "dark spots", "hyperpigmentation", "melasma", "acne treatment", "acne scars", "large pores", "rosacea", "eczema relief", "psoriasis", "dry skin", "led face mask", "microcurrent facial"],
+  "es": ["arrugas", "antiedad", "flacidez facial", "manchas en la cara", "melasma", "acné", "poros abiertos", "piel seca", "rosácea", "mascarilla led"]
+ },
+ "U4 Cabelo e couro cabeludo": {
+  "en": ["hair loss", "thinning hair", "hair growth", "hair growth device", "red light hair growth", "scalp massager", "hair breakage", "hair volume"],
+  "es": ["caída del cabello", "crecimiento del cabello", "cabello delgado", "masajeador capilar"]
+ },
+ "U5 Beleza feminina": {
+  "en": ["eyelashes", "lash serum alternative", "eyebrow shaping", "hair removal device", "ipl hair removal", "facial hair removal", "at home beauty device"],
+  "es": ["pestañas", "cejas", "depilación", "depiladora ipl", "vello facial"]
+ },
+ "U6 Corpo e estética": {
+  "en": ["cellulite", "loose skin", "lymphatic drainage", "body sculpting", "ems body", "body contouring", "swelling relief", "compression leggings"],
+  "es": ["celulitis", "flacidez corporal", "drenaje linfático", "moldeador corporal", "faja moldeadora"]
+ },
+ "U7 Pés e unhas": {
+  "en": ["toenail fungus", "nail fungus", "brittle nails", "cracked heels", "foot callus", "bunion corrector", "plantar fasciitis", "foot pain", "orthopedic insoles", "toe separator"],
+  "es": ["hongos en las uñas", "uñas quebradizas", "talones agrietados", "juanetes", "callos en los pies", "fascitis plantar", "plantillas ortopédicas"]
+ },
+ "U8 Olhos": {
+  "en": ["dark circles", "under eye bags", "puffy eyes", "eye strain", "eye massager", "heated eye mask"],
+  "es": ["ojeras", "bolsas en los ojos", "ojos cansados", "masajeador de ojos"]
+ },
+ "U9 Relaxamento e bem-estar": {
+  "en": ["stress relief", "anxiety relief", "relaxation", "neck massager", "foot massager", "massage gun", "aromatherapy", "weighted blanket", "self care"],
+  "es": ["estrés", "ansiedad", "relajación", "masajeador de cuello", "masajeador de pies", "pistola de masaje"]
+ },
+ "U10 Tecnologia de saúde e beleza": {
+  "en": ["red light therapy", "led therapy", "ems device", "microcurrent", "tens unit", "heating pad", "cold therapy", "compression therapy", "vibration therapy", "posture device"],
+  "es": ["terapia de luz roja", "electroestimulador", "tens", "almohadilla térmica", "terapia de frío", "terapia de compresión"]
+ }
+}

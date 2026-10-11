@@ -1,4 +1,4 @@
-"""MM Intelligence — Google Trends collector for the United States."""
+"""MM Intelligence — Google Trends das dores do método MM (EUA + México)."""
 import json
 import os
 import time
@@ -10,19 +10,18 @@ from pytrends.request import TrendReq
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_ANON_KEY"]
 
-SEEDS = [
-    "foot pain relief product",
-    "back pain relief device",
-    "posture corrector",
-    "hair loss device",
-    "dark spot remover",
-    "nail care device",
-    "sleep aid device",
-    "knee support",
-    "skin care device",
-    "home beauty device",
-]
-REGIONS = ["US"]
+# Dores do método MM (mesma lista do robô da Meta). en -> EUA, es -> México.
+UNIVERSOS = json.load(open(os.path.join(os.path.dirname(__file__), "universos_mm.json"), encoding="utf-8"))
+REGIONS = {"US": ("en", "en-US"), "MX": ("es", "es-MX")}
+ROTACAO = 6  # cada dor é medida a cada 6 dias (o Google limita robô)
+
+
+def seeds_do_dia(idioma):
+    lst = [(t, u) for u, langs in UNIVERSOS.items() if not u.startswith("_") for t in langs.get(idioma, [])]
+    hoje = datetime.now(timezone.utc).date().toordinal() % ROTACAO
+    return [x for i, x in enumerate(lst) if i % ROTACAO == hoje]
+
+
 BLOCKED = ("capsule", "capsules", "supplement", "course", "ebook", "pdf", "training program")
 
 
@@ -31,11 +30,11 @@ def physical_only(term: str) -> bool:
     return not any(x in t for x in BLOCKED)
 
 
-def fetch_trends(seed: str, geo: str):
+def fetch_trends(seed: str, geo: str, hl: str = "en-US"):
     last_exc = None
     for attempt in range(3):
         try:
-            py = TrendReq(hl="en-US", tz=360, timeout=(10, 30))
+            py = TrendReq(hl=hl, tz=360, timeout=(10, 30))
             py.build_payload([seed], timeframe="today 3-m", geo=geo)
             interest = py.interest_over_time()
             avg = peak = latest = 0
@@ -78,20 +77,20 @@ def main():
     now = datetime.now(timezone.utc).isoformat()
     errors = []
     written = 0
-    for geo in REGIONS:
-        for seed in SEEDS:
+    for geo, (idioma, hl) in REGIONS.items():
+        for seed, universo in seeds_do_dia(idioma):
             if not physical_only(seed):
                 continue
             try:
-                data = fetch_trends(seed, geo)
-                signal = {"source": "Google Trends", "geo": geo, "seed": seed, "collected_at": now, **data}
+                data = fetch_trends(seed, geo, hl)
+                signal = {"source": "Google Trends", "geo": geo, "seed": seed, "universo": universo, "collected_at": now, **data}
                 write_signal(seed, signal)
                 written += 1
                 print(f"OK {geo} {seed}: {data['latest_interest']} growth={data['growth_pct']}%")
                 for item in data["rising_queries"]:
-                    write_signal(item["query"], {"source": "Google Trends Rising", "geo": geo, "parent_seed": seed, "trend_value": item["value"], "collected_at": now})
+                    write_signal(item["query"], {"source": "Google Trends Rising", "geo": geo, "parent_seed": seed, "universo": universo, "trend_value": item["value"], "collected_at": now})
                     written += 1
-                time.sleep(3)
+                time.sleep(5)
             except Exception as exc:
                 msg = f"{geo} {seed}: {exc}"
                 errors.append(msg)
@@ -100,7 +99,7 @@ def main():
     if written == 0:
         raise RuntimeError("Google Trends collector wrote zero signals: " + " | ".join(errors))
     if errors:
-        raise RuntimeError("Google Trends collection incomplete: " + " | ".join(errors))
+        print("Incompleto (o Google limita robô; a dor volta no próximo rodízio): " + " | ".join(errors))
 
 
 if __name__ == "__main__":

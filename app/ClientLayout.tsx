@@ -5,7 +5,7 @@ import { useState } from 'react'
 
 const nav = [
   { href: '/', label: 'Dashboard', icon: <span>▦</span> },
-  { href: '/vencedores', label: 'Vencedores Meta', icon: <span style={{color:'#34d399'}}>★</span> },
+  { href: '/vencedores', label: 'Radar MM', icon: <span style={{color:'#34d399'}}>★</span> },
   { href: '/produtos', label: 'Produtos', icon: <span>▣</span> },
   { href: '/radar', label: 'Radar', icon: <span>◎</span> },
   { href: '/youtube', label: 'YouTube', icon: <span style={{color:'#ff4d4d'}}>▶</span> },
