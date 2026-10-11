@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Anunciante = { page_id: string; nome: string; anuncios_ativos: number }
+type ProdLoja = { titulo: string; handle: string; preco: number | null; criado_em: string; dias: number | null; imagem: string }
+type Loja = { host: string; total_produtos: number; catalogo_completo: boolean; novos_30d: number; novos: ProdLoja[] }
 type Vencedor = {
  data: string; chave: string; nota: number; posicao: number; titulo: string | null; dominio: string; link: string
  imagem: string | null; video: string | null; texto: string | null; n_ads: number; copias: number; dias_min: number
  dias_max: number; maior_anunciante: number; anunciantes: Anunciante[]; palavras: string[]; ads: string[]
- preco: number | null; pais: string; regra: { max_dias: number; min_anuncios_anunciante: number } | null
+ preco: number | null; shopify: { loja?: Loja } | null; pais: string; regra: { max_dias: number; min_anuncios_anunciante: number } | null
 }
 
 const libPagina = (id: string) => `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&view_all_page_id=${id}`
@@ -19,7 +21,7 @@ export default function VencedoresPage() {
  const [loading, setLoading] = useState(true)
  const [erro, setErro] = useState('')
  const [busca, setBusca] = useState('')
- const [filtro, setFiltro] = useState<'todos' | 'fortes' | 'frescos' | 'shopify'>('todos')
+ const [filtro, setFiltro] = useState<'todos' | 'fortes' | 'frescos' | 'shopify' | 'lancando'>('todos')
  const [aberto, setAberto] = useState<string | null>(null)
 
  useEffect(() => {
@@ -33,6 +35,7 @@ export default function VencedoresPage() {
   if (filtro === 'fortes') return r.nota >= 60
   if (filtro === 'frescos') return r.dias_min <= 30
   if (filtro === 'shopify') return /\/products\//.test(r.link || '')
+  if (filtro === 'lancando') return (r.shopify?.loja?.novos_30d || 0) > 0
   return true
  }), [rows, busca, filtro])
 
@@ -43,6 +46,7 @@ export default function VencedoresPage() {
   ['Nota 60+', rows.filter(r => r.nota >= 60).length, 'fortes'],
   ['Começaram há ≤30 dias', rows.filter(r => r.dias_min <= 30).length, 'frescos'],
   ['Página de produto Shopify', rows.filter(r => /\/products\//.test(r.link || '')).length, 'shopify'],
+  ['Loja lançando produto (30d)', rows.filter(r => (r.shopify?.loja?.novos_30d || 0) > 0).length, 'lancando'],
  ]
 
  return <div className="mm-fade-in">
@@ -89,10 +93,23 @@ export default function VencedoresPage() {
         <div key={String(a)} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 6, padding: '6px 8px' }}>
          <div style={{ fontSize: 16, fontWeight: 800 }}>{b}</div><div style={{ color: 'var(--text3)' }}>{a}</div></div>)}
       </div>
+      {r.shopify?.loja && <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+       Loja: <b>{r.shopify.loja.total_produtos}{r.shopify.loja.catalogo_completo ? '' : '+'}</b> produtos ·{' '}
+       <b style={{ color: r.shopify.loja.novos_30d ? '#fbbf24' : 'var(--text3)' }}>{r.shopify.loja.novos_30d} lançados em 30 dias</b>
+      </div>}
       <div style={{ fontSize: 12 }}>Anunciante: {an.map(a => <a key={a.page_id} href={libPagina(a.page_id)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', marginRight: 8 }}>{a.nome} ↗</a>)}</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{(r.palavras || []).map(p => <span key={p} style={{ fontSize: 10, border: '1px solid rgba(255,255,255,.15)', borderRadius: 10, padding: '1px 7px', color: 'var(--text3)' }}>{p}</span>)}</div>
       {r.texto && <div style={{ fontSize: 12, color: 'var(--text2)', whiteSpace: 'pre-wrap' }}>{exp ? r.texto : r.texto.slice(0, 160) + (r.texto.length > 160 ? '…' : '')}</div>}
       {exp && <div style={{ fontSize: 11, color: 'var(--text3)' }}>Cópias do criativo: {r.copias} · Anúncios: {(r.ads || []).map(id => <a key={id} href={libAnuncio(id)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', marginRight: 6 }}>{id}</a>)}</div>}
+      {exp && !!r.shopify?.loja?.novos?.length && <div style={{ fontSize: 11 }}>
+       <div style={{ color: 'var(--text3)', marginBottom: 4 }}>Últimos lançamentos da loja (o que ela está testando agora):</div>
+       {r.shopify.loja.novos.map(n => <a key={n.handle} href={`https://${r.shopify!.loja!.host}/products/${n.handle}`} target="_blank" rel="noopener noreferrer"
+        style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text2)', padding: '3px 0' }}>
+        {n.imagem && <img src={n.imagem} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />}
+        <span style={{ flex: 1 }}>{n.titulo}</span>
+        <span style={{ color: 'var(--text3)', whiteSpace: 'nowrap' }}>{n.preco ? `US$ ${n.preco.toFixed(2)} · ` : ''}há {n.dias}d</span>
+       </a>)}
+      </div>}
       <div style={{ display: 'flex', gap: 6, marginTop: 'auto', flexWrap: 'wrap' }}>
        <a href={r.link} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: 'center', background: 'var(--purple)', color: '#fff', borderRadius: 8, padding: '8px 0', fontWeight: 800, fontSize: 12 }}>VER LOJA ↗</a>
        {r.ads?.[0] && <a href={libAnuncio(r.ads[0])} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: 'center', border: '1px solid var(--purple)', color: 'var(--purple3)', borderRadius: 8, padding: '8px 0', fontWeight: 800, fontSize: 12 }}>VER ANÚNCIO ↗</a>}
