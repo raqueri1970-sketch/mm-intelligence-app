@@ -16,7 +16,7 @@ type Item = {
  ev_duplicacao: boolean; ev_aceleracao: boolean | null; ev_tendencia: boolean | null; ev_preco: boolean; ev_alcance: boolean
  evidencias: number; classe: Classe
 }
-type Dor = { termo: string; geo: string; universo: string | null; crescimento_pct: number | null; interesse_atual: number | null; buscas_em_alta: { query: string; value: string }[] | null; coletado_em: string }
+type Dor = { termo: string; geo: string; universo: string | null; crescimento_pct: number | null; interesse_atual: number | null; interesse_medio: number | null; buscas_em_alta: { query: string; value: string }[] | null; coletado_em: string }
 
 const CLASSES: Classe[] = ['PRODUTO VENCEDOR', 'FORTE', 'VALIDAR', 'OBSERVAR']
 const COR: Record<Classe, string> = { 'PRODUTO VENCEDOR': '#34d399', FORTE: '#60a5fa', VALIDAR: '#fbbf24', OBSERVAR: '#94a3b8' }
@@ -67,7 +67,7 @@ export default function RadarPage() {
   return true
  }), [doPais, busca, universo, classe])
 
- const doresPais = useMemo(() => dores.filter(d => d.geo === pais && d.crescimento_pct !== null)
+ const doresPais = useMemo(() => dores.filter(d => d.geo === pais && d.crescimento_pct !== null && (d.interesse_medio ?? 0) >= 10)
   .sort((a, b) => (b.crescimento_pct || 0) - (a.crescimento_pct || 0)), [dores, pais])
  const emAlta = useMemo(() => {
   const m = new Map<string, string>()
@@ -120,7 +120,8 @@ export default function RadarPage() {
   {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Carregando radar...</div>}
 
   {!loading && <details className="mm-card" style={{ padding: 14, marginBottom: 16 }}>
-   <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Dores crescendo agora — Google Trends {pais} ({doresPais.length} dores medidas) e buscas novas em alta</summary>
+   <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Dores crescendo agora — Google Trends {pais} ({doresPais.length} dores com volume suficiente) e buscas novas em alta</summary>
+   <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>Crescimento = média do último mês vs primeiro mês (3 meses). Dores com interesse médio abaixo de 10 ficam de fora: volume baixo demais para confirmar tendência.</div>
    {!doresPais.length && <div style={{ color: 'var(--text3)', fontSize: 13, marginTop: 8 }}>Ainda sem medição das dores deste país. O Google Trends roda todo dia e mede cada dor a cada 6 dias.</div>}
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 6, marginTop: 10 }}>
     {doresPais.slice(0, 40).map(d => <div key={d.termo} style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,.04)', borderRadius: 6, padding: '5px 8px' }}>
