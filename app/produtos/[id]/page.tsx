@@ -44,6 +44,7 @@ export default function ProdutoPage() {
   const params = useParams()
   const router = useRouter()
   const [product, setProduct] = useState<any>(null)
+  const [concorrentes, setConcorrentes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -52,6 +53,9 @@ export default function ProdutoPage() {
       setProduct(data)
       setLoading(false)
     })
+    supabase.from('mm_produto_concorrentes').select('*').eq('product_id', params.id)
+      .order('n_anuncios', { ascending: false })
+      .then(({ data }) => setConcorrentes(data || []))
   }, [params?.id])
 
   if (loading) return <div className="mm-loading"><div className="mm-spinner" />Carregando produto...</div>
@@ -173,6 +177,45 @@ export default function ProdutoPage() {
                   <div style={{fontSize:12,fontWeight:800,color:'#fbbf24'}}>Link do item ainda não validado</div>
                   <div style={{fontSize:10,color:'var(--text3)',marginTop:5,lineHeight:1.5}}>Pesquisas auxiliares não serão mostradas como se fossem o link do produto.</div>
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mm-card">
+            <div className="mm-card__header"><span className="mm-card__title">Quem está vendendo (Meta Ads)</span></div>
+            <div className="mm-card__body" style={{display:'flex',flexDirection:'column',gap:14}}>
+              {concorrentes.length === 0 && (
+                <div style={{fontSize:11,color:'var(--text3)',lineHeight:1.5}}>Nenhuma loja anunciando foi encontrada na última coleta.</div>
+              )}
+              {(['US','MX'] as const).map(pais => {
+                const lista = concorrentes.filter(c => c.pais === pais)
+                return (
+                  <div key={pais}>
+                    <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text3)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>
+                      {pais === 'US' ? '🇺🇸 Estados Unidos' : '🇲🇽 México'} · {lista.length ? lista.length + ' loja(s)' : 'nenhum anunciante — espaço livre'}
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                      {lista.map(c => (
+                        <div key={c.id} style={{padding:'9px 11px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:9}}>
+                          <div style={{display:'flex',alignItems:'center',gap:8}}>
+                            <span style={{fontSize:12,fontWeight:700,color:'var(--text)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.anunciante}</span>
+                            <span style={{marginLeft:'auto',fontSize:10,fontFamily:'var(--mono)',color:c.n_anuncios>=20?'#f59e0b':'#a78bfa',flexShrink:0}}>{c.n_anuncios} anúncio(s)</span>
+                          </div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:5,fontSize:10,fontFamily:'var(--mono)'}}>
+                            {c.site && <a href={'https://' + c.site} target="_blank" rel="noopener noreferrer" style={{color:'#34d399',textDecoration:'none'}}>🛒 {c.site} ↗</a>}
+                            {(c.anuncios || []).map((u: string, i: number) => (
+                              <a key={u} href={u} target="_blank" rel="noopener noreferrer" style={{color:'#60a5fa',textDecoration:'none'}}>📣 anúncio {i + 1} ↗</a>
+                            ))}
+                            {c.dias_anuncio_mais_novo != null && <span style={{color:'var(--text3)'}}>mais novo: {c.dias_anuncio_mais_novo}d</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {concorrentes[0]?.coletado_em && (
+                <div style={{fontSize:9,color:'var(--text3)',fontFamily:'var(--mono)'}}>coletado em {new Date(concorrentes[0].coletado_em).toLocaleDateString('pt-BR')}</div>
               )}
             </div>
           </div>
