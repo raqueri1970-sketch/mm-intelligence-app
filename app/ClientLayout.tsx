@@ -8,6 +8,7 @@ const nav = [
   { href: '/vencedores', label: 'Radar MM', icon: <span style={{color:'#34d399'}}>★</span> },
   { href: '/produtos', label: 'Produtos', icon: <span>▣</span> },
   { href: '/radar', label: 'Radar', icon: <span>◎</span> },
+  { href: '/shopee', label: 'Shopee', icon: <span style={{color:'#ee4d2d'}}>S</span> },
   { href: '/youtube', label: 'YouTube', icon: <span style={{color:'#ff4d4d'}}>▶</span> },
   { href: '/tiktok', label: 'TikTok', externalHref: 'https://www.tiktok.com/explore', icon: <span>♪</span> },
   { href: '/amazon', label: 'Amazon', externalHref: 'https://www.amazon.com/', icon: <span>◉</span> },
