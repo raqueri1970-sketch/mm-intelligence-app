@@ -65,3 +65,12 @@
   .item { grid-template-columns: 34px minmax(0,1fr); }
   .views, .actions { grid-column: 2; }
 }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; color: var(--text2); cursor: pointer; user-select: none; }
+.chip input { display: none; }
+.chipOn { border-color: #10b981; color: #34d399; background: rgba(16,185,129,.1); }
+.subids { display: flex; flex-wrap: wrap; gap: 5px; }
+.subid { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 4px 4px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg2); color: var(--text); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.subid span { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; background: rgba(167,139,250,.18); color: var(--purple2); font-size: 10px; }
+.subid:hover { border-color: var(--purple2); }

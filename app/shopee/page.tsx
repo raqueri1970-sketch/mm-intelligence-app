@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import s from './shopee.module.css'
 import { remix, type RemixResult } from './remixer'
+import SubIdGenerator from './SubIdGenerator'
 
 const videos=[
  {rank:1,title:'TikTok — vídeo de afiliado líder encontrado',views:'2,48 mi',source:'TikTok / pesquisa pública',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop',hook:'PROVA + CURIOSIDADE',why:'Maior vídeo de afiliado localizado na amostra pública. Use como referência de ritmo e abertura.'},
@@ -36,6 +37,7 @@ export default function ShopeePage(){
  const [hooksText,setHooksText]=useState(autoHooks.join('\n'))
  const [count,setCount]=useState(10),[seconds,setSeconds]=useState(20),[cta,setCta]=useState('Link na bio • carrinho laranja')
  const [progress,setProgress]=useState(''),[results,setResults]=useState<RemixResult[]>([]),[remixing,setRemixing]=useState(false)
+ const [seed,setSeed]=useState<{link:string;name:string;at:number}>()
  const [q,setQ]=useState(''),[sort,setSort]=useState('2'),[products,setProducts]=useState<Product[]>([]),[mineMsg,setMineMsg]=useState(''),[mining,setMining]=useState(false)
 
  useEffect(()=>{try{setRights(localStorage.getItem('mm-video-rights')==='1')}catch{}},[])
@@ -110,7 +112,7 @@ export default function ShopeePage(){
    {mineMsg&&<div className={`${s.hint} ${s.err}`}>{mineMsg}</div>}
    {products.length>0&&<div className={s.tableWrap}><table className={s.table}><thead><tr><th>Score</th><th></th><th>Produto</th><th>Preço</th><th>Vendas</th><th>Nota</th><th>Comissão</th><th>Link</th></tr></thead><tbody>
     {products.map(p=><tr key={p.id}><td className={s.score}>{p.score}</td><td>{p.image&&<img src={p.image} alt=""/>}</td><td>{p.name}<small style={{display:'block',color:'var(--text3)'}}>{p.shop}</small></td><td>{brl(p.price)}</td><td>{p.sales.toLocaleString('pt-BR')}</td><td>{p.rating.toFixed(1)}</td><td>{brl(p.commission)}<small style={{display:'block',color:'var(--text3)'}}>{p.commissionRate.toFixed(1)}%</small></td>
-     <td><div className={s.actions}><button className={`${s.btn} ${s.btnGhost}`} onClick={()=>navigator.clipboard.writeText(p.affiliateLink)}>COPIAR</button><button className={`${s.btn} ${s.btnGhost}`} onClick={()=>{setQ(p.name);window.open(`https://www.tiktok.com/search/video?q=${encodeURIComponent(p.name.split(' ').slice(0,5).join(' '))}`,'_blank','noopener')}}>VÍDEOS ↗</button></div></td></tr>)}
+     <td><div className={s.actions}><button className={`${s.btn} ${s.btnGhost}`} onClick={()=>navigator.clipboard.writeText(p.affiliateLink)}>COPIAR</button><button className={s.btn} onClick={()=>setSeed({link:p.productLink,name:p.name,at:Date.now()})}>SUB ID</button><button className={`${s.btn} ${s.btnGhost}`} onClick={()=>{setQ(p.name);window.open(`https://www.tiktok.com/search/video?q=${encodeURIComponent(p.name.split(' ').slice(0,5).join(' '))}`,'_blank','noopener')}}>VÍDEOS ↗</button></div></td></tr>)}
    </tbody></table></div>}
   </section>
 
@@ -163,6 +165,9 @@ export default function ShopeePage(){
    {progress&&<div className={s.progress}>{progress}</div>}
    {results.length>0&&<div className={s.grid}>{results.map(r=><div key={r.name} className={s.thumb}><video src={r.url} controls/><b>{r.name}</b><small style={{fontSize:10,color:'var(--text3)',display:'block'}}>{r.recipe}</small><a className={`${s.btn} ${s.btnGhost}`} style={{display:'block',textAlign:'center',marginTop:6}} href={r.url} download={r.name}>BAIXAR</a></div>)}</div>}
   </section>
+
+  {/* 6. SUB ID */}
+  <SubIdGenerator hooks={hooks} videoCount={results.length||count} seed={seed}/>
 
   <section className={s.panel}><h2 style={{fontSize:18}}>Regra de compliance</h2><p className={s.hint} style={{fontSize:13,color:'var(--text2)'}}>Bloquear no texto publicitário: “clareamento”, “clareia”, “clareador”, cura de melasma, proteção 100% e promessa de não reaplicar.</p></section>
  </div>
