@@ -1,3 +1,21 @@
+# MM Intelligence
+
+## Módulo Shopee Afiliado (`/shopee/*`)
+
+| Tela | Rota | O que faz |
+|---|---|---|
+| Primeiros passos | `/shopee/afiliado` | Checklist do afiliado + status da Open API |
+| Minerador | `/shopee/minerador` | Produtos via API de Afiliados (`/api/shopee/products`) |
+| Radar de vídeos | `/shopee` | TOP vídeos com link real; botão **Verificar agora** reconfere links e views |
+| Criativos | `/shopee/criativos` | Download por link (`/api/video/download`), ganchos e remix no navegador |
+| Sub ID | `/shopee/subid` | Um link por vídeo/rede (`/api/shopee/shortlink`) |
+
+Variáveis de ambiente (Vercel): `SHOPEE_APP_ID`, `SHOPEE_SECRET` — obtidas em affiliate.shopee.com.br/open_api após liberação.
+
+Regra do Radar: só entra no ranking vídeo com link que abre e views lidas na própria página. Números de terceiros sem link ficam em "Referências sem link".
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
