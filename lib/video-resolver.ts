@@ -121,7 +121,18 @@ async function resolveByMeta(u: URL, source: ResolvedVideo['source']): Promise<R
     title: decode(metaContent(html, 'og:title') || finalUrl.pathname.split('/').filter(Boolean).pop() || 'video'),
     videoUrl,
     headers: { 'user-agent': UA, referer: finalUrl.origin + '/', ...(cookie ? { cookie } : {}) },
+    views: source === 'mercadolivre' ? mlClipViews(html, finalUrl) : undefined,
   }
+}
+
+// Mercado Livre Clips: o contador vem no JSON da página, perto do id do clip ("views":"15.956").
+function mlClipViews(html: string, u: URL): number | undefined {
+  const id = u.pathname.match(/\/clips\/([^/]+)/)?.[1]
+  if (!id) return undefined
+  const i = html.indexOf(`"${id}"`)
+  if (i < 0) return undefined
+  const m = html.slice(Math.max(0, i - 3000), i + 3000).match(/"views?"\s*:\s*"?([\d.]+)/i)
+  return m ? Number(m[1].replace(/\./g, '')) || undefined : undefined
 }
 
 export async function resolveVideo(raw: string): Promise<ResolvedVideo> {

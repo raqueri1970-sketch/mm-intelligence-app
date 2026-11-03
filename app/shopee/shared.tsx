@@ -6,17 +6,28 @@ import s from './shopee.module.css'
 
 // Dados e utilitários compartilhados entre as páginas do menu Shopee Afiliado.
 
-export const videos=[
- {rank:1,title:'TikTok — vídeo de afiliado líder encontrado',views:'2,48 mi',source:'TikTok / pesquisa pública',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop',hook:'PROVA + CURIOSIDADE',why:'Maior vídeo de afiliado localizado na amostra pública. Use como referência de ritmo e abertura.'},
- {rank:2,title:'TikTok — vídeo da própria Hidrabene',views:'4,1 mi',source:'TikTok / pesquisa pública',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop',hook:'DEMONSTRAÇÃO DA MARCA',why:'A conta oficial teve milhões de visualizações; referência forte para demonstração do produto.'},
- {rank:3,title:'Hidrabene FPS 70 — Short 11,5 mil',views:'11.560',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/bOwdXh/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'TOQUE SECO / ROTINA',why:'Melhor clip individual que conseguimos abrir e medir diretamente.'},
- {rank:4,title:'Hidrabene FPS 70 — Short 7,8 mil',views:'7.838',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/333PDU/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'FPS 70 + TOQUE SECO',why:'Boa tração entre os clips públicos encontrados.'},
- {rank:5,title:'Hidrabene FPS 70 — Short 4,1 mil',views:'4.185',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/JkBaGv/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'PROTEÇÃO + PELE OLEOSA',why:'Mostra outro ângulo de venda e mantém volume razoável.'},
- {rank:6,title:'Hidrabene FPS 70 — Short 2,2 mil',views:'2.233',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/oxfduQ/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'ROTINA DIÁRIA',why:'Referência adicional de estrutura curta.'},
- {rank:7,title:'Hidrabene FPS 70 — Short 1,7 mil',views:'1.725',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/cKObJl/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'BENEFÍCIO RÁPIDO',why:'Útil para comparar abertura e duração.'},
- {rank:8,title:'Hidrabene FPS 70 — Short 1,6 mil',views:'1.632',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/fSiHBp/hidrabene-protetor-solar-facial-clareador-fps-70-50g',hook:'TEXTURA + EFEITO MATTE',why:'Boa referência visual; adapte o texto às regras atuais da marca.'},
- {rank:9,title:'Hidrabene FPS 70 — Short 1,4 mil',views:'1.435',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/2TQx0v/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'CUIDADO DIÁRIO',why:'Referência recente encontrada em outubro.'},
- {rank:10,title:'Hidrabene FPS 70 — Short 710',views:'710',source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/oBd2Zo/hidrabene-protetor-solar-facial-clareador-fps-70-50g',hook:'ABSORÇÃO / MATTE',why:'Menor sinal; fica no banco para cenas, não como modelo principal.'}
+// Vídeos verificados um a um em 03/11/2026 (link abre o vídeo e as views foram lidas na própria página).
+// Use o botão "VERIFICAR AGORA" no Radar para atualizar os números ao vivo.
+export type RadarVideo={id:string;title:string;views:number;source:string;url:string;hook:string;why:string}
+export const VERIFIED_AT='03/11/2026'
+export const videos:RadarVideo[]=[
+ {id:'ml-bOwdXh',title:'Hidrabene FPS 70 — clip toque seco',views:15956,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/bOwdXh/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'TOQUE SECO / ROTINA',why:'Maior clip verificado. Referência principal de abertura e ritmo.'},
+ {id:'ml-333PDU',title:'Hidrabene FPS 70 — clip FPS + toque seco',views:11143,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/333PDU/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'FPS 70 + TOQUE SECO',why:'Segundo maior; mesmo ângulo com outra abertura.'},
+ {id:'ml-fSiHBp',title:'Hidrabene FPS 70 — clip textura matte',views:5750,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/fSiHBp/hidrabene-protetor-solar-facial-clareador-fps-70-50g',hook:'TEXTURA + EFEITO MATTE',why:'Subiu muito desde a última coleta. Atenção: o anúncio usa "clareador" — não repita no seu texto.'},
+ {id:'ml-JkBaGv',title:'Hidrabene FPS 70 — clip pele oleosa',views:4793,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/JkBaGv/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'PROTEÇÃO + PELE OLEOSA',why:'Outro ângulo de venda com volume razoável.'},
+ {id:'ml-oxfduQ',title:'Hidrabene FPS 70 — clip rotina diária',views:2235,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/oxfduQ/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'ROTINA DIÁRIA',why:'Referência de estrutura curta.'},
+ {id:'ml-cKObJl',title:'Hidrabene FPS 70 — clip benefício rápido',views:1730,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/cKObJl/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'BENEFÍCIO RÁPIDO',why:'Bom para comparar abertura e duração.'},
+ {id:'ml-2TQx0v',title:'Hidrabene FPS 70 — clip cuidado diário',views:1578,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/2TQx0v/hidrabene-protetor-facial-solar-fps-70-toque-seco',hook:'CUIDADO DIÁRIO',why:'Banco de cenas.'},
+ {id:'ml-oBd2Zo',title:'Hidrabene FPS 70 — clip absorção',views:712,source:'Mercado Livre Clips',url:'https://www.mercadolivre.com.br/shorts/clips/oBd2Zo/hidrabene-protetor-solar-facial-clareador-fps-70-50g',hook:'ABSORÇÃO / MATTE',why:'Sinal fraco; só banco de cenas.'},
+ {id:'tt-7685421543144295700',title:'TikTok @biaalcantaraoficial — protetor Hidrabene',views:380,source:'TikTok',url:'https://www.tiktok.com/@biaalcantaraoficial/video/7685421543144295700',hook:'INDICAÇÃO PESSOAL',why:'Vídeo de afiliada com link real. Views baixas — use como exemplo de formato, não de resultado.'},
+ {id:'tt-7685924302427819282',title:'TikTok @_laraatilio — protetor solar Hidrabene',views:171,source:'TikTok',url:'https://www.tiktok.com/@_laraatilio/video/7685924302427819282',hook:'APLICAÇÃO NA PELE',why:'Demonstração simples de aplicação.'},
+ {id:'tt-7686520217626856712',title:'TikTok @jamilah.fabres — Protetor FPS 70 Uniformizador',views:145,source:'TikTok',url:'https://www.tiktok.com/@jamilah.fabres/video/7686520217626856712',hook:'PRODUTO EXATO (FPS 70)',why:'Único vídeo do TikTok encontrado sobre o mesmo FPS 70.'},
+]
+
+// Números citados por terceiros SEM link do vídeo — não entram no ranking.
+export const unlinkedRefs=[
+ {label:'Maior vídeo de afiliado (protetor solar facial)',value:'2.481.170 views',source:'Artigo Nolyn, dados de 16/10/2026',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop'},
+ {label:'Vídeo da própria marca',value:'4,1 mi views',source:'Artigo Nolyn, dados de 16/10/2026',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop'},
 ]
 export const autoHooks=['Skincare disfarçado de protetor: FPS 70 + Niacinamida 5%','Se você odeia protetor grudento, olha essa textura','FPS 70 com toque seco: olha como ele some na pele','Pare de pagar caro só pela marca','O protetor que entra na rotina como skincare','3 dedos, espalhou, sumiu: proteção para o dia a dia']
 export const BANNED=/clareamento|clareia|clareador|melasma|100%|n[aã]o precisa reaplicar/i
