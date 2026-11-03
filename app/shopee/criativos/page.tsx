@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import s from '../shopee.module.css'
 import { remix, type RemixResult } from '../remixer'
-import { KEYS, QueryReader, ShopeeTabs, saveBlob, useHooks, useLocal } from '../shared'
+import { BANNED, KEYS, QueryReader, ShopeeTabs, saveBlob, useHooks, useLocal } from '../shared'
 
 type Job = { url: string; status: 'wait' | 'ok' | 'err'; msg: string }
 
@@ -21,6 +21,7 @@ export default function CriativosPage() {
   const [progress, setProgress] = useState('')
   const [results, setResults] = useState<RemixResult[]>([])
   const [remixing, setRemixing] = useState(false)
+  const badCta = BANNED.test(cta)
 
 
   const previews = useMemo(() => files.map(f => URL.createObjectURL(f)), [files])
@@ -92,8 +93,9 @@ export default function CriativosPage() {
           <label>Duração (segundos)<input className={s.input} type="number" min={8} max={60} value={seconds} onChange={e => setSeconds(Math.max(8, Math.min(60, +e.target.value || 20)))} /></label>
           <label>Texto final (CTA)<input className={s.input} value={cta} onChange={e => setCta(e.target.value)} /></label>
         </div>
+        {badCta && <div className={`${s.hint} ${s.err}`}>⚠ O texto final tem termo proibido (compliance). Troque antes de gerar.</div>}
         <div className={s.row} style={{ marginTop: 12 }}>
-          <button className={s.btn} disabled={remixing || files.length < 2 || badHooks.length > 0} onClick={runRemix}>{remixing ? 'GERANDO...' : `GERAR ${count} VÍDEOS`}</button>
+          <button className={s.btn} disabled={remixing || files.length < 2 || badHooks.length > 0 || badCta} onClick={runRemix}>{remixing ? 'GERANDO...' : `GERAR ${count} VÍDEOS`}</button>
           {results.length > 0 && <button className={`${s.btn} ${s.btnGhost}`} onClick={() => results.forEach((r, i) => setTimeout(() => saveBlob(r.blob, r.name), i * 400))}>BAIXAR TODOS OS REMIX ↓</button>}
           {results.length > 0 && <Link className={s.btn} href="/shopee/subid">GERAR SUB IDS DESTES VÍDEOS →</Link>}
         </div>

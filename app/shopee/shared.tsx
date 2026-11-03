@@ -29,7 +29,7 @@ export const unlinkedRefs=[
  {label:'Maior vídeo de afiliado (protetor solar facial)',value:'2.481.170 views',source:'Artigo Nolyn, dados de 16/10/2026',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop'},
  {label:'Vídeo da própria marca',value:'4,1 mi views',source:'Artigo Nolyn, dados de 16/10/2026',url:'https://www.nolyn.ai/pt/case-studies/como-achar-afiliados-tiktok-shop'},
 ]
-export const autoHooks=['Skincare disfarçado de protetor: FPS 70 + Niacinamida 5%','Se você odeia protetor grudento, olha essa textura','FPS 70 com toque seco: olha como ele some na pele','Pare de pagar caro só pela marca','O protetor que entra na rotina como skincare','3 dedos, espalhou, sumiu: proteção para o dia a dia']
+export const autoHooks=['Skincare disfarçado de protetor: FPS 70 com niacinamida','Se você odeia protetor grudento, olha essa textura','FPS 70 com toque seco: olha como ele some na pele','Pare de pagar caro só pela marca','O protetor que entra na rotina como skincare','3 dedos, espalhou, sumiu: proteção para o dia a dia']
 export const BANNED=/clareamento|clareia|clareador|melasma|100%|n[aã]o precisa reaplicar/i
 
 export type Product={id:number;name:string;shop:string;price:number;discount:number;sales:number;rating:number;commissionRate:number;commission:number;image:string;productLink:string;affiliateLink:string;score:number}
@@ -50,8 +50,12 @@ export function useLocal<T>(key:string,initial:T){
  return [v,setV,ready] as const
 }
 
+// Correções de ganchos já salvos no navegador (afirmações que não conseguimos comprovar).
+const HOOK_FIXES:[RegExp,string][]=[[/FPS 70 \+ Niacinamida 5%/g,'FPS 70 com niacinamida']]
+
 export function useHooks(){
  const [text,setText,ready]=useLocal<string>(KEYS.hooks,autoHooks.join('\n'))
+ useEffect(()=>{if(!ready)return;const fixed=HOOK_FIXES.reduce((t,[re,to])=>t.replace(re,to),text);if(fixed!==text)setText(fixed)},[ready,text,setText])
  const hooks=text.split('\n').map(h=>h.trim()).filter(Boolean)
  return {text,setText,hooks,bad:hooks.filter(h=>BANNED.test(h)),ready}
 }
