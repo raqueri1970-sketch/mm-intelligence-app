@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import s from '../shopee.module.css'
 import { ApiBadge, ShopeeTabs, brl, useApiStatus, type Product } from '../shared'
+import DailyRanking from '../DailyRanking'
 
 export default function MineradorPage() {
   const router = useRouter()
@@ -43,8 +44,10 @@ export default function MineradorPage() {
         </section>
       )}
 
+      <DailyRanking onSubId={(link, name) => router.push(`/shopee/subid?link=${encodeURIComponent(link)}&name=${encodeURIComponent(name)}`)} />
+
       <section className={s.panel}>
-        <div className={s.panelHead}><div><h2>Buscar produtos</h2><p>Score 0–100 = 50% demanda (vendas) + 35% comissão em R$ + 15% nota.</p></div><ApiBadge /></div>
+        <div className={s.panelHead}><div><h2>Buscar agora</h2><p>Score 0–100 = 50% demanda (vendas) + 35% comissão em R$ + 15% nota.</p></div><ApiBadge /></div>
         <div className={s.row}>
           <input className={`${s.input} ${s.grow}`} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && mine()} placeholder="ex: protetor solar facial, mini processador, escova secadora" />
           <select className={s.select} value={sort} onChange={e => setSort(e.target.value)}><option value="2">Mais vendidos</option><option value="5">Maior comissão</option><option value="1">Relevância</option></select>

@@ -72,6 +72,7 @@ export const SHOPEE_TABS=[
  {href:'/shopee',label:'Radar de vídeos'},
  {href:'/shopee/criativos',label:'Criativos'},
  {href:'/shopee/subid',label:'Sub ID'},
+ {href:'/shopee/relatorio',label:'Relatório'},
 ]
 
 export function ShopeeTabs(){
