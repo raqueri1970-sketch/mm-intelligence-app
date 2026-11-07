@@ -9,7 +9,7 @@ const PUBLISHABLE_KEY = 'sb_publishable_olCaCIksSYJGOaAYInXHeA_2pm-gaoF'
 
 // Campos conforme a documentação pública/comunitária da Open API de Afiliados.
 // ⚠ Ainda não testado com a conta real (API aguardando liberação) — conferir via introspecção quando liberar.
-const QUERY = `query ($start: Int, $end: Int, $limit: Int, $scrollId: String) {
+const QUERY = `query ($start: Int64, $end: Int64, $limit: Int, $scrollId: String) {
   conversionReport(purchaseTimeStart: $start, purchaseTimeEnd: $end, limit: $limit, scrollId: $scrollId) {
     nodes {
       purchaseTime conversionId totalCommission utmContent
