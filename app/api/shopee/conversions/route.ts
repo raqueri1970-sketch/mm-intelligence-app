@@ -7,10 +7,12 @@ export const maxDuration = 60
 const SUPABASE_URL = 'https://tazyeczbbgspqbyluynf.supabase.co'
 const PUBLISHABLE_KEY = 'sb_publishable_olCaCIksSYJGOaAYInXHeA_2pm-gaoF'
 
-// Campos conforme a documentação pública/comunitária da Open API de Afiliados.
-// ⚠ Ainda não testado com a conta real (API aguardando liberação) — conferir via introspecção quando liberar.
-const QUERY = `query ($start: Int64, $end: Int64, $limit: Int, $scrollId: String) {
-  conversionReport(purchaseTimeStart: $start, purchaseTimeEnd: $end, limit: $limit, scrollId: $scrollId) {
+// Campos conferidos por introspecção na conta real (07/11/2026).
+// A Shopee recusa Int64 passado como variável ("wrong type"), então os valores vão escritos na consulta.
+function buildQuery(start: number, end: number, scrollId?: string) {
+  const scroll = scrollId ? `, scrollId: ${JSON.stringify(scrollId)}` : ''
+  return `{
+  conversionReport(purchaseTimeStart: ${Math.trunc(start)}, purchaseTimeEnd: ${Math.trunc(end)}, limit: 500${scroll}) {
     nodes {
       purchaseTime conversionId totalCommission utmContent
       orders { orderId orderStatus items { itemId itemName itemPrice qty itemTotalCommission } }
@@ -18,6 +20,7 @@ const QUERY = `query ($start: Int64, $end: Int64, $limit: Int, $scrollId: String
     pageInfo { limit hasNextPage scrollId }
   }
 }`
+}
 
 type Item = { itemId?: number; itemName?: string; itemPrice?: string; qty?: number; itemTotalCommission?: string }
 type Node = { purchaseTime?: number; conversionId?: string | number; totalCommission?: string; utmContent?: string; orders?: { orderId?: string; orderStatus?: string; items?: Item[] }[] }
@@ -47,7 +50,7 @@ export async function GET(req: NextRequest) {
   try {
     let scrollId: string | undefined
     for (let page = 0; page < 20; page++) {
-      const data = await shopeeGraphQL<Page>(QUERY, { start, end, limit: 500, scrollId }, { cronSecret: cron! })
+      const data = await shopeeGraphQL<Page>(buildQuery(start, end, scrollId), {}, { cronSecret: cron! })
       const rep = data.conversionReport
       for (const n of rep?.nodes ?? []) {
         const subs = String(n.utmContent || '').split('-').map(s => s.trim())
