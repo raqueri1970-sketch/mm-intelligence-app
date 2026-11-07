@@ -36,7 +36,8 @@ async function authorized(secret: string | null) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!(await authorized(req.headers.get('x-mm-cron')))) {
+  const cron = req.headers.get('x-mm-cron')
+  if (!(await authorized(cron))) {
     return NextResponse.json({ error: 'não autorizado' }, { status: 401 })
   }
   const days = Math.min(30, Math.max(1, Number(req.nextUrl.searchParams.get('days')) || 7))
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
   try {
     let scrollId: string | undefined
     for (let page = 0; page < 20; page++) {
-      const data = await shopeeGraphQL<Page>(QUERY, { start, end, limit: 500, scrollId })
+      const data = await shopeeGraphQL<Page>(QUERY, { start, end, limit: 500, scrollId }, { cronSecret: cron! })
       const rep = data.conversionReport
       for (const n of rep?.nodes ?? []) {
         const subs = String(n.utmContent || '').split('-').map(s => s.trim())

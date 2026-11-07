@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
+import { shopeeConfigured } from '@/lib/shopee-affiliate'
 
 export const dynamic = 'force-dynamic'
 
-// Diz só se as chaves existem — nunca devolve os valores.
-export function GET() {
-  return NextResponse.json({ configured: Boolean(process.env.SHOPEE_APP_ID && process.env.SHOPEE_SECRET) })
+// Diz só se as chaves existem (Vercel ou cofre do Supabase) — nunca devolve os valores.
+export async function GET() {
+  return NextResponse.json({ configured: await shopeeConfigured() })
 }
