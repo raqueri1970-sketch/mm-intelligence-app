@@ -66,8 +66,8 @@ export default function ChristmasPicks({ campaign = 'natal', onSubId }: { campai
     <section className={s.panel} style={{ borderColor: 'rgba(239,68,68,.45)', background: 'linear-gradient(180deg, rgba(239,68,68,.07), var(--card) 40%)' }}>
       <div className={s.panelHead}>
         <div>
-          <h2>🎄 Oportunidades de Natal</h2>
-          <p>O que o pessoal está buscando no Google para presentear → o produto certo na Shopee, com seu link de afiliado. Pesquisado em {new Date(picks[0].picked_at).toLocaleDateString('pt-BR')}; os números do dia vêm do minerador automático.</p>
+          <h2>🎄 Oportunidades de Natal e Réveillon</h2>
+          <p>O que o pessoal está buscando no Google (presentes, looks de réveillon e de confraternização) → o produto certo na Shopee, com seu link de afiliado. Pesquisado em {new Date(picks[0].picked_at).toLocaleDateString('pt-BR')}; os números do dia vêm do minerador automático.</p>
         </div>
         <div className={s.row}>
           <span className={s.badge} style={{ borderColor: 'rgba(239,68,68,.5)', color: '#fca5a5', background: 'rgba(239,68,68,.12)' }}>{top.length} APOSTAS · {picks.length} PRODUTOS</span>
