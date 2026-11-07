@@ -5,6 +5,7 @@ import { useState } from 'react'
 import s from '../shopee.module.css'
 import { ApiBadge, ShopeeTabs, brl, useApiStatus, type Product } from '../shared'
 import DailyRanking from '../DailyRanking'
+import ChristmasPicks from '../ChristmasPicks'
 
 export default function MineradorPage() {
   const router = useRouter()
@@ -43,6 +44,8 @@ export default function MineradorPage() {
           <p className={s.hint}>Critério rápido: +1.000 vendas, nota 4,5+, comissão a partir de R$ 3 por venda e produto que dá para demonstrar em vídeo.</p>
         </section>
       )}
+
+      <ChristmasPicks onSubId={(link, name) => router.push(`/shopee/subid?link=${encodeURIComponent(link)}&name=${encodeURIComponent(name)}`)} />
 
       <DailyRanking onSubId={(link, name) => router.push(`/shopee/subid?link=${encodeURIComponent(link)}&name=${encodeURIComponent(name)}`)} />
 

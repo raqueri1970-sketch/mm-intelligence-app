@@ -5,7 +5,7 @@ import s from './shopee.module.css'
 import { brl } from './shared'
 
 type Offer = { item_id: number; name: string; shop: string | null; keyword: string; price: number; sales: number; rating: number; commission: number; commission_rate: number; score: number; image: string | null; affiliate_link: string | null; product_link: string | null; run_date: string }
-type Keyword = { keyword: string; active: boolean }
+type Keyword = { keyword: string; active: boolean; campaign?: string | null }
 type Run = { kind: string; ok: boolean; message: string; ran_at: string }
 
 export function LastRun({ kinds }: { kinds: string[] }) {
@@ -33,7 +33,7 @@ export default function DailyRanking({ onSubId }: { onSubId: (link: string, name
       const { data } = await supabase.from('mm_shopee_offers').select('*').eq('run_date', day).order('score', { ascending: false }).limit(200)
       setOffers((data as Offer[]) ?? [])
     }
-    const { data: kws } = await supabase.from('mm_shopee_keywords').select('keyword,active').order('keyword')
+    const { data: kws } = await supabase.from('mm_shopee_keywords').select('keyword,active,campaign').order('keyword')
     setKeywords((kws as Keyword[]) ?? [])
   }, [])
   useEffect(() => { load() }, [load])
@@ -48,7 +48,8 @@ export default function DailyRanking({ onSubId }: { onSubId: (link: string, name
   async function toggle(k: Keyword) { await supabase.from('mm_shopee_keywords').update({ active: !k.active }).eq('keyword', k.keyword); load() }
   async function remove(k: Keyword) { await supabase.from('mm_shopee_keywords').delete().eq('keyword', k.keyword); load() }
 
-  const shown = offers.filter(o => !filter || o.keyword === filter)
+  const natalKw = new Set(keywords.filter(k => k.campaign === 'natal').map(k => k.keyword))
+  const shown = offers.filter(o => !filter || (filter === '#natal' ? natalKw.has(o.keyword) : o.keyword === filter))
   const activeCount = keywords.filter(k => k.active).length
 
   return (
@@ -62,6 +63,7 @@ export default function DailyRanking({ onSubId }: { onSubId: (link: string, name
           <>
             <div className={s.chips}>
               <button className={`${s.chip} ${!filter ? s.chipOn : ''}`} onClick={() => setFilter('')}>Todas</button>
+              {keywords.some(k => k.campaign === 'natal') && <button className={`${s.chip} ${filter === '#natal' ? s.chipOn : ''}`} onClick={() => setFilter('#natal')}>🎄 Natal</button>}
               {[...new Set(offers.map(o => o.keyword))].map(k => <button key={k} className={`${s.chip} ${filter === k ? s.chipOn : ''}`} onClick={() => setFilter(k)}>{k}</button>)}
             </div>
             <div className={s.tableWrap}><table className={s.table}>
@@ -93,7 +95,7 @@ export default function DailyRanking({ onSubId }: { onSubId: (link: string, name
         {msg && <div className={`${s.hint} ${s.err}`}>{msg}</div>}
         <div className={s.chips}>{keywords.map(k => (
           <span key={k.keyword} className={`${s.chip} ${k.active ? s.chipOn : ''}`}>
-            <span onClick={() => toggle(k)} title={k.active ? 'Pausar' : 'Ativar'}>{k.active ? '●' : '○'} {k.keyword}</span>
+            <span onClick={() => toggle(k)} title={k.active ? 'Pausar' : 'Ativar'}>{k.active ? '●' : '○'} {k.campaign === 'natal' ? '🎄 ' : ''}{k.keyword}</span>
             <span onClick={() => remove(k)} title="Remover" style={{ opacity: .6, marginLeft: 4 }}>✕</span>
           </span>
         ))}</div>
