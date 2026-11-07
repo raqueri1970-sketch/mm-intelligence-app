@@ -3,7 +3,7 @@ import { shopeeGraphQL, ShopeeConfigError } from '@/lib/shopee-affiliate'
 
 export const dynamic = 'force-dynamic'
 
-const MUTATION = `mutation ($url: String!, $subIds: [String]) {
+const MUTATION = `mutation ($url: String!, $subIds: [String!]) {
   generateShortLink(input: { originUrl: $url, subIds: $subIds }) { shortLink }
 }`
 
