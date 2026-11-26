@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import s from './shopee.module.css'
 import { brl, type Product } from './shared'
+import InstaShare from './InstaShare'
 
 // Cartão de produto da Shopee usado nas telas Natal e Em alta: foto, preço, vendas, comissão
 // e os botões COPIAR LINK (gera link curto com Sub ID), WHATSAPP, COPIAR TEXTO e VER NA SHOPEE.
@@ -87,6 +88,7 @@ export default function OfferCard({ it, sub, emoji }: { it: OfferItem; sub: stri
         {link && <small className={s.xLink}>{link}</small>}
       </div>
       <div className={s.xActions}>
+        <InstaShare p={{ name: it.name, price: it.price, sales: it.sales, rating: it.rating, image: it.image, keyword: it.keyword }} />
         <button className={s.btn} disabled={busy} onClick={() => act('link')}>{busy ? 'GERANDO…' : done === 'link' ? 'LINK COPIADO ✓' : 'COPIAR LINK'}</button>
         <button className={`${s.btn} ${s.btnGhost}`} disabled={busy} onClick={() => act('zap')}>WHATSAPP ↗</button>
         <button className={`${s.btn} ${s.btnGhost}`} disabled={busy} onClick={() => act('msg')}>{done === 'msg' ? 'TEXTO COPIADO ✓' : 'COPIAR TEXTO'}</button>
