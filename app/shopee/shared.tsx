@@ -73,6 +73,7 @@ export const SHOPEE_TABS=[
  {href:'/shopee/criativos',label:'Criativos'},
  {href:'/shopee/subid',label:'Sub ID'},
  {href:'/shopee/relatorio',label:'Relatório'},
+ {href:'/shopee/vip',label:'Grupo VIP'},
 ]
 
 export function ShopeeTabs(){
