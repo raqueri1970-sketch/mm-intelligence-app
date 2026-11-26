@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; externalHref?: string }
 type NavGroup = { title?: string; color?: string; sub?: string; items: NavItem[] }
@@ -55,6 +55,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const path = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [lang, setLang] = useState('pt')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // No celular o menu é uma gaveta: fecha ao trocar de página e trava o scroll do fundo enquanto aberto.
+  useEffect(() => { setMenuOpen(false) }, [path])
+  useEffect(() => {
+    document.body.classList.toggle('mm-menu-open', menuOpen)
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey); document.body.classList.remove('mm-menu-open') }
+  }, [menuOpen])
 
   const item = (n: NavItem, nested: boolean) => {
     const active = path === n.href
@@ -70,7 +81,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }
 
   return <>
-    <aside className={collapsed ? 'mm-sidebar mm-sidebar--collapsed' : 'mm-sidebar'}>
+    <aside id="mm-sidebar" className={'mm-sidebar' + (collapsed ? ' mm-sidebar--collapsed' : '') + (menuOpen ? ' mm-sidebar--open' : '')}>
       <div className="mm-logo"><div className="mm-logo__mark">MM</div>{!collapsed && <div className="mm-logo__text"><span className="mm-logo__name">Intelligence</span><span className="mm-logo__tag">Drop · AI · Score</span></div>}</div>
       <nav className="mm-nav" style={{ overflowY: 'auto' }}>
         {groups.map((g, gi) => (
@@ -85,9 +96,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {!collapsed && <div className="mm-lang"><span className="mm-lang__label">Idioma</span><div className="mm-lang__pills">{[['pt', '🇧🇷 PT'], ['en', '🇺🇸 EN'], ['es', '🇲🇽 ES']].map(([l, label]) => <button key={l} onClick={() => setLang(l)} className={'mm-lang__pill' + (lang === l ? ' mm-lang__pill--active' : '')}>{label}</button>)}</div></div>}
       <button className="mm-collapse" onClick={() => setCollapsed(!collapsed)}>{collapsed ? '›' : '‹'}</button>
     </aside>
+    {menuOpen && <div className="mm-backdrop" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
     <main className="mm-main">
       <header className="mm-topbar">
-        <div className="mm-topbar__left"><span className="mm-topbar__path">{crumb(path)}</span></div>
+        <div className="mm-topbar__left"><button type="button" className="mm-burger" onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={menuOpen} aria-controls="mm-sidebar">{menuOpen ? '✕' : '☰'}</button><span className="mm-topbar__path">{crumb(path)}</span></div>
         <div className="mm-topbar__right"><div className="mm-topbar__status"><span className="mm-pulse" />Minerador ativo</div><div className="mm-topbar__stores"><span className="mm-store-badge mm-store-badge--mx">🇲🇽 MX</span><span className="mm-store-badge mm-store-badge--us">🇺🇸 US</span><span className="mm-store-badge mm-store-badge--br">🇧🇷 BR</span></div></div>
       </header>
       <div className="mm-content">{children}</div>

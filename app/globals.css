@@ -250,14 +250,50 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .mm-stagger > *:nth-child(5) { animation-delay: 0.25s; }
 .mm-stagger > *:nth-child(6) { animation-delay: 0.30s; }
 
+.mm-burger, .mm-backdrop { display: none; }
+
 @media (max-width: 768px) {
   .mm-stats { grid-template-columns: repeat(3,1fr); }
   .mm-grid-2 { grid-template-columns: 1fr; }
-  .mm-sidebar { width: var(--sidebar-collapsed); }
-  .mm-main { margin-left: var(--sidebar-collapsed); }
-  .mm-content { padding: 16px; }
-  .mm-nav__label, .mm-logo__text, .mm-lang, .mm-topbar__stores, .mm-collapse { display: none; }
-  .mm-main { min-width: 0; overflow-x: hidden; }
+
+  /* Menu vira gaveta: some da tela e abre pelo botão ☰ do topo. */
+  .mm-sidebar, .mm-sidebar--collapsed {
+    width: min(280px, 84vw);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: none;
+    z-index: 120;
+  }
+  .mm-sidebar--open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  .mm-sidebar .mm-nav { flex: 1; padding-bottom: 24px; }
+  .mm-sidebar .mm-nav__item { min-height: 44px; }
+  .mm-collapse { display: none; }
+  .mm-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 110; }
+  body.mm-menu-open { overflow: hidden; }
+
+  .mm-main, .mm-sidebar--collapsed ~ .mm-main { margin-left: 0; min-width: 0; width: 100%; overflow-x: hidden; }
+  .mm-topbar { padding: 0 12px 0 6px; gap: 8px; }
+  .mm-topbar__left { min-width: 0; }
+  .mm-topbar__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mm-topbar__stores { display: none; }
+  .mm-burger {
+    display: inline-grid; place-items: center; flex-shrink: 0;
+    width: 44px; height: 44px; border: 0; border-radius: 10px;
+    background: transparent; color: var(--text); font-size: 22px; cursor: pointer;
+  }
+  .mm-burger:active { background: rgba(255,255,255,.06); }
+  .mm-content { padding: 16px 14px; }
   .mm-page-title { font-size: 20px; }
   .mm-page-subtitle { overflow-wrap: anywhere; }
+
+  /* Grades com colunas fixas no desktop. */
+  .mm-r-stack { grid-template-columns: minmax(0,1fr) !important; }
+  .mm-r-cards { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+  .mm-r-item4 { grid-template-columns: 36px minmax(0,1fr) !important; }
+  .mm-r-item4 > :nth-child(n+3) { grid-column: 2; }
+}
+
+@media (max-width: 420px) {
+  .mm-topbar__status { font-size: 0; gap: 0; }
+  .mm-r-cards { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
 }

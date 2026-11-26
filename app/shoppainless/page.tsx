@@ -77,7 +77,7 @@ export default function ShopPainlessPage() {
         <div className={s.panelHead}><div><h2>Top produtos agora</h2><p>Maiores scores do ranking minerado.</p></div><Link className={s.btn} href="/produtos">VER TODOS →</Link></div>
         {top.length === 0 ? <p className={s.hint}>Carregando…</p> : (
           <div className={s.list}>{top.map((p, i) => (
-            <Link key={p.id} href={`/produtos/${p.id}`} className={s.item} style={{ textDecoration: 'none', color: 'var(--text)', gridTemplateColumns: '44px minmax(0,1fr) 90px 90px' }}>
+            <Link key={p.id} href={`/produtos/${p.id}`} className={`${s.item} mm-r-item4`} style={{ textDecoration: 'none', color: 'var(--text)', gridTemplateColumns: '44px minmax(0,1fr) 90px 90px' }}>
               <b className={s.rank}>#{i + 1}</b>
               <div><b>{p.name}</b><small>{p.niche ?? '—'}</small></div>
               <div className={s.views}><b>{p.score_final ?? '—'}</b><span>score</span></div>

@@ -101,17 +101,17 @@ export default function VipPage() {
             <div className={s.list}>{queue.filter(q => dayKey(q.slot_at) === d).sort((a, b) => a.slot_at.localeCompare(b.slot_at)).map(q => {
               const due = new Date(q.slot_at).getTime() <= now
               return (
-                <div key={q.id} className={s.item} style={{ gridTemplateColumns: '64px 72px 1fr auto', alignItems: 'start', opacity: q.status === 'cancelado' ? .45 : 1 }}>
-                  <b className={s.rank}>{hhmm(q.slot_at)}</b>
-                  {q.image ? <img src={q.image} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }} /> : <span />}
-                  <div>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, margin: 0 }}>{q.message}</pre>
+                <div key={q.id} className={`${s.item} ${s.qItem}`} style={{ opacity: q.status === 'cancelado' ? .45 : 1 }}>
+                  <b className={`${s.rank} ${s.qTime}`}>{hhmm(q.slot_at)}</b>
+                  {q.image ? <img className={s.qImg} src={q.image} alt="" /> : <span className={s.qImg} />}
+                  <div className={s.qBody}>
+                    <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit', fontSize: 13, margin: 0 }}>{q.message}</pre>
                     <small>{q.keyword} · score {Math.round(q.score)} · comissão {brl(Number(q.commission))} ({Number(q.commission_rate).toFixed(0)}%)</small>
                     <small className={q.status === 'enviado' ? s.ok : q.status === 'erro' ? s.err : due ? s.wait : undefined}>
                       {q.status === 'enviado' ? `✓ postada${q.sent_via === 'zapi' ? ' automaticamente' : ''}` : q.status === 'erro' ? `✕ ${q.error}` : q.status === 'cancelado' ? 'cancelada' : due ? '● hora de postar' : '○ agendada'}
                     </small>
                   </div>
-                  <div className={s.actions} style={{ flexDirection: 'column' }}>
+                  <div className={`${s.actions} ${s.qActions}`}>
                     <button className={s.btn} onClick={() => copy(q.message, q.id)}>{copied === q.id ? 'COPIADO ✓' : 'COPIAR'}</button>
                     <a className={`${s.btn} ${s.btnGhost}`} href={`https://wa.me/?text=${encodeURIComponent(q.message)}`} target="_blank" rel="noopener noreferrer">WHATSAPP ↗</a>
                     {q.status !== 'enviado' && <button className={`${s.btn} ${s.btnGhost}`} onClick={() => mark(q, 'enviado')}>JÁ POSTEI</button>}

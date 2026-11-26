@@ -96,3 +96,17 @@
 .card:hover { border-color: rgba(238,77,45,.5); }
 .card b { font-size: 15px; } .card p { color: var(--text2); font-size: 13px; margin-top: 6px; line-height: 1.45; }
 .card span { font-family: var(--mono); font-size: 10px; color: #ee4d2d; }
+
+/* Fila do Grupo VIP: no celular a hora e a foto ficam em cima, a mensagem embaixo e os botões grandes, 2 por linha. */
+.qItem { grid-template-columns: 64px 72px minmax(0,1fr) auto; grid-template-areas: "time img body actions"; align-items: start; }
+.qTime { grid-area: time; }
+.qImg { grid-area: img; width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.qBody { grid-area: body; min-width: 0; }
+.qActions { grid-area: actions; flex-direction: column; }
+@media (max-width: 720px) {
+  .qItem { grid-template-columns: 72px minmax(0,1fr); grid-template-areas: "img time" "body body" "actions actions"; gap: 10px 12px; padding: 12px; }
+  .qTime { align-self: center; font-size: 26px; }
+  .qImg { width: 72px; height: 72px; }
+  .qActions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qActions a, .qActions button { padding: 13px 10px; font-size: 13px; }
+}
