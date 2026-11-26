@@ -62,6 +62,7 @@ const HOOKS: Record<string, string[]> = {
 const XMAS_KW = /natal|noel|natalin/i;
 function xmasSeason(dateBR: string) { const md = dateBR.slice(5); return md >= "11-01" && md <= "12-24"; }
 const XMAS_BOOST = 20;
+const XMAS_SHARE = 0.7;
 const XMAS_GENERIC = ["Achado de Natal que tá vendendo muito", "Casa no clima de Natal gastando pouco", "Decoração de Natal que todo mundo tá levando", "Pro Natal ficar mais bonito aí em casa"];
 const GENERIC = ["Achadinho pra casa que vale cada centavo", "Esse aqui resolveu minha vida em casa", "Achado do dia pra sua casa", "Utilidade que todo lar precisa"];
 
@@ -125,21 +126,42 @@ async function build(st: Settings) {
                                       and slot_at >= ${date + "T00:00:00" + BR_OFFSET}::timestamptz
                                       and slot_at < (${date + "T00:00:00" + BR_OFFSET}::timestamptz + interval '1 day')`)
     .map((r: any) => new Date(r.slot_at).toISOString()));
-  const free = st.slots.map((h) => new Date(`${date}T${h}:00${BR_OFFSET}`).toISOString()).filter((s) => !taken.has(s));
+  // só horários livres e que ainda não passaram (montar a fila no meio do dia não cria ofertas "atrasadas")
+  const soon = Date.now() + 2 * 60 * 1000;
+  const free = st.slots.map((h) => new Date(`${date}T${h}:00${BR_OFFSET}`).toISOString())
+    .filter((s) => !taken.has(s) && new Date(s).getTime() > soon);
 
   if (xmasSeason(date)) {
     const rank = (o: Offer) => o.score + (XMAS_KW.test(o.keyword) ? XMAS_BOOST : 0);
     offers.sort((a, b) => rank(b) - rank(a));
   }
 
+  // Na temporada, Natal ocupa no máximo 70% do dia (o grupo continua sendo de casa); fora dela, sem limite.
+  const season = xmasSeason(date);
+  const xmasCap = season ? Math.ceil(free.length * XMAS_SHARE) : free.length;
   const perKw = new Map<string, number>();
-  const picked: Offer[] = [];
+  const seen = new Set<string>();
+  const chosen: Offer[] = [];
+  let xmasCount = 0;
   for (const o of offers) {
-    if (picked.length >= free.length) break;
+    if (chosen.length >= free.length) break;
     if (BANNED.test(o.name)) continue;
     const c = perKw.get(o.keyword) ?? 0;
     if (c >= st.max_per_keyword) continue;
-    perKw.set(o.keyword, c + 1); picked.push(o);
+    const isX = XMAS_KW.test(o.keyword);
+    if (isX && xmasCount >= xmasCap) continue;
+    const nameKey = o.name.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 40); // mesmo anúncio repetido por lojas diferentes
+    if (seen.has(nameKey)) continue;
+    seen.add(nameKey); perKw.set(o.keyword, c + 1); chosen.push(o);
+    if (isX) xmasCount++;
+  }
+  // intercala ao longo do dia (2 de Natal, 1 de casa), melhores primeiro dentro de cada grupo
+  const xs = chosen.filter((o) => XMAS_KW.test(o.keyword)), cs = chosen.filter((o) => !XMAS_KW.test(o.keyword));
+  const picked: Offer[] = [];
+  while (xs.length || cs.length) {
+    if (xs.length) picked.push(xs.shift()!);
+    if (xs.length) picked.push(xs.shift()!);
+    if (cs.length) picked.push(cs.shift()!);
   }
 
   let queued = 0; const errors: string[] = [];
