@@ -41,6 +41,7 @@ const groups: NavGroup[] = [
       { href: '/shopee/vip', label: 'Grupo VIP', icon: <span style={{ color: SH }}>★</span> },
       { href: '/shopee/natal', label: 'Achados de Natal', icon: <span>🎄</span> },
       { href: '/shopee/tendencias', label: 'Em alta', icon: <span>🔥</span> },
+      { href: '/shopee/instagram', label: 'Instagram', icon: <span>📸</span> },
     ],
   },
 ]

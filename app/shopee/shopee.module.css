@@ -151,3 +151,7 @@
 .btnInsta { border-color: rgba(236,72,153,.55); background: linear-gradient(90deg, rgba(249,115,22,.14), rgba(236,72,153,.16), rgba(168,85,247,.14)); color: #f9a8d4; }
 .btnInsta:hover:not(:disabled) { background: linear-gradient(90deg, rgba(249,115,22,.24), rgba(236,72,153,.26), rgba(168,85,247,.24)); }
 .xActions .btnInsta, .qActions .btnInsta { grid-column: 1 / -1; }
+
+.howto { margin: 4px 0 0 18px; display: grid; gap: 10px; font-size: 14px; color: var(--text2); line-height: 1.5; }
+.howto code { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.howto a { color: #fb923c; }
