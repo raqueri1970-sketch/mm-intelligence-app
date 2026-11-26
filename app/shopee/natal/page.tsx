@@ -4,15 +4,12 @@ import { supabase } from '@/lib/supabase'
 import s from '../shopee.module.css'
 import { LastRun } from '../DailyRanking'
 import { ShopeeTabs, brl, type Product } from '../shared'
+import OfferCard, { fromProduct as baseFromProduct, shortName, type OfferItem } from '../OfferCard'
 
 // Achados de Natal: o que o minerador trouxe hoje (decoração e presentes) + busca ao vivo na Shopee.
 // Cada link copiado já sai com o Sub ID "natal" para aparecer separado no relatório de comissões.
 
-type Item = {
-  item_id: number; keyword: string; name: string; price: number; sales: number; rating: number
-  commission_rate: number; commission: number; score: number; image: string | null
-  product_link: string | null; affiliate_link: string | null; group: 'decor' | 'gift' | 'busca'
-}
+type Item = OfferItem & { group: 'decor' | 'gift' | 'busca' }
 type Group = 'all' | 'decor' | 'gift'
 type Sort = 'score' | 'sales' | 'commission' | 'price'
 
@@ -33,22 +30,7 @@ function daysToXmas() {
   if (today > xmas) xmas = Date.UTC(y + 1, 11, 25)
   return Math.round((xmas - today) / 86400000)
 }
-const shortName = (n: string) => { const t = n.replace(/\s+/g, ' ').trim(); return t.length > 80 ? t.slice(0, 80).replace(/\s+\S*$/, '') + '…' : t }
-const fromProduct = (p: Product, keyword: string): Item => ({
-  item_id: p.id, keyword, name: p.name, price: p.price, sales: p.sales, rating: p.rating, commission_rate: p.commissionRate,
-  commission: p.commission, score: p.score, image: p.image || null, product_link: p.productLink || null, affiliate_link: p.affiliateLink || null, group: 'busca',
-})
-function message(it: Item, link: string) {
-  return [
-    `🎄 *${shortName(it.name)}*`,
-    `💰 *${brl(Number(it.price))}*`,
-    `${it.rating >= 4 ? `⭐ ${Number(it.rating).toFixed(1).replace('.', ',')} · ` : ''}${Number(it.sales).toLocaleString('pt-BR')} vendidos`,
-    ``,
-    `👉 ${link}`,
-    ``,
-    `_Link de afiliado: posso ganhar comissão, sem custo a mais pra você. Preço e estoque podem mudar._`,
-  ].join('\n')
-}
+const fromProduct = (p: Product, keyword: string): Item => ({ ...baseFromProduct(p, keyword), group: 'busca' })
 
 export default function NatalPage() {
   const [items, setItems] = useState<Item[]>([])
@@ -62,9 +44,6 @@ export default function NatalPage() {
   const [live, setLive] = useState<Item[]>([])
   const [liveMsg, setLiveMsg] = useState('')
   const [busy, setBusy] = useState(false)
-  const [links, setLinks] = useState<Record<number, string>>({})
-  const [working, setWorking] = useState<number>()
-  const [done, setDone] = useState<{ id: number; what: string }>()
 
   useEffect(() => {
     (async () => {
@@ -116,61 +95,7 @@ export default function NatalPage() {
     setBusy(false)
   }
 
-  // Gera (uma vez) o link curto com Sub ID natal/app/<item>; se a Shopee falhar, usa o link de afiliado padrão.
-  async function linkFor(it: Item) {
-    if (links[it.item_id]) return links[it.item_id]
-    let link = it.affiliate_link || ''
-    if (it.product_link) {
-      try {
-        const r = await fetch('/api/shopee/shortlink', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: it.product_link, subIds: ['natal', 'app', String(it.item_id)] }) })
-        const j = await r.json()
-        if (r.ok && j.shortLink) link = j.shortLink
-      } catch { /* fica o link padrão */ }
-    }
-    if (link) setLinks(m => ({ ...m, [it.item_id]: link }))
-    return link
-  }
-  async function act(it: Item, what: 'link' | 'msg' | 'zap') {
-    setWorking(it.item_id)
-    const link = await linkFor(it)
-    setWorking(undefined)
-    if (!link) return
-    if (what === 'zap') { window.location.href = `https://wa.me/?text=${encodeURIComponent(message(it, link))}`; return }
-    const text = what === 'msg' ? message(it, link) : link
-    try { await navigator.clipboard.writeText(text) } catch { window.prompt('Copie:', text) }
-    setDone({ id: it.item_id, what })
-  }
-
-  const card = (it: Item) => {
-    const good = it.commission_rate >= 10
-    const busyHere = working === it.item_id
-    const copied = done?.id === it.item_id ? done.what : ''
-    return (
-      <article key={`${it.group}-${it.item_id}`} className={s.xItem}>
-        {it.image ? <img className={s.xImg} src={it.image} alt="" loading="lazy" /> : <span className={s.xImg} />}
-        <div className={s.xInfo}>
-          <b className={s.xName}>{it.name}</b>
-          <div className={s.xMeta}>
-            <span className={s.xPrice}>{brl(it.price)}</span>
-            <span>⭐ {it.rating ? it.rating.toFixed(1).replace('.', ',') : '—'}</span>
-            <span>{it.sales.toLocaleString('pt-BR')} vendidos</span>
-          </div>
-          <div className={s.xMeta}>
-            <span className={good ? s.xCom : s.xComLow}>{brl(it.commission)} por venda</span>
-            <span style={{ color: good ? '#34d399' : 'var(--amber)' }}>{it.commission_rate.toFixed(0)}%</span>
-            <span className={s.xTag}>{it.keyword}</span>
-          </div>
-          {links[it.item_id] && <small className={s.xLink}>{links[it.item_id]}</small>}
-        </div>
-        <div className={s.xActions}>
-          <button className={s.btn} disabled={busyHere} onClick={() => act(it, 'link')}>{busyHere ? 'GERANDO…' : copied === 'link' ? 'LINK COPIADO ✓' : 'COPIAR LINK'}</button>
-          <button className={`${s.btn} ${s.btnGhost}`} disabled={busyHere} onClick={() => act(it, 'zap')}>WHATSAPP ↗</button>
-          <button className={`${s.btn} ${s.btnGhost}`} disabled={busyHere} onClick={() => act(it, 'msg')}>{copied === 'msg' ? 'TEXTO COPIADO ✓' : 'COPIAR TEXTO'}</button>
-          {it.product_link && <a className={`${s.btn} ${s.btnGhost}`} href={it.product_link} target="_blank" rel="noopener noreferrer">VER NA SHOPEE ↗</a>}
-        </div>
-      </article>
-    )
-  }
+  const card = (it: Item) => <OfferCard key={`${it.group}-${it.item_id}`} it={it} sub="natal" emoji="🎄" />
 
   const dias = daysToXmas()
   return (

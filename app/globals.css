@@ -289,7 +289,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
   /* Barra de abas fixa embaixo (jeito de app). */
   .mm-tabbar {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     background: rgba(9,17,26,.96); border-top: 1px solid var(--border);

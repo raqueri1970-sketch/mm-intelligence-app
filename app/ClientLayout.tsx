@@ -40,6 +40,7 @@ const groups: NavGroup[] = [
       { href: '/shopee/relatorio', label: 'Relatório', icon: <span style={{ color: SH }}>$</span> },
       { href: '/shopee/vip', label: 'Grupo VIP', icon: <span style={{ color: SH }}>★</span> },
       { href: '/shopee/natal', label: 'Achados de Natal', icon: <span>🎄</span> },
+      { href: '/shopee/tendencias', label: 'Em alta', icon: <span>🔥</span> },
     ],
   },
 ]
@@ -48,6 +49,7 @@ const groups: NavGroup[] = [
 const TABS = [
   { href: '/shopee/vip', label: 'Hoje', icon: '★' },
   { href: '/shopee/natal', label: 'Natal', icon: '🎄' },
+  { href: '/shopee/tendencias', label: 'Em alta', icon: '🔥' },
   { href: '/shopee/minerador', label: 'Buscar', icon: '🔍' },
   { href: '/shopee/relatorio', label: 'Ganhos', icon: 'R$' },
 ]
