@@ -5,6 +5,9 @@
 //                          pronto de mm_ig_videos (o enviado no painel tem prioridade sobre o gerado das fotos);
 //                          nos outros horários, ou sem vídeo pronto, publica foto + legenda.
 //                          Fora do horário só termina Reels que a Meta ainda estava processando.
+//   POST {action:"poll"}   (x-mm-cron, a cada 2 min): lê os comentários dos posts dos últimos 7 dias e responde os "EU QUERO".
+//   Facebook: se mm_ig_config.fb_enabled, cada foto/Reel publicado no Instagram também sai na página (link de compra
+//             direto na legenda); falha no Facebook fica em mm_ig_posts.fb_error e não derruba o Instagram.
 //   GET  ?hub.challenge    (Meta): confirmação do webhook.
 //   POST (Meta, assinado): comentário novo → se for "EU QUERO", manda o link no direct e responde no post.
 // Segredos só no cofre: mm_meta_app_secret, mm_meta_user_token, mm_meta_page_token, mm_ig_verify_token, mm_cron_secret.
@@ -125,6 +128,48 @@ async function product(itemId: number | string) {
   return o as any;
 }
 
+// ---------- página do Facebook (mesmo conteúdo, link de compra direto; liga/desliga em mm_ig_config.fb_enabled) ----------
+async function fbCaption(o: any, link: string, extra?: string | null) {
+  const [vip] = await sql`select group_link from public.mm_vip_settings where niche = 'casa'`;
+  const xmas = /natal|noel|natalin|reveillon/i.test(`${o.keyword} ${o.name}`);
+  const lines = [`${xmas ? "🎄" : "🏠"} ${clean(o.name)}`];
+  if (extra) lines.push(``, String(extra).trim());
+  lines.push(``, `💰 ${brl(o.price)}${Number(o.rating) >= 4 ? ` · ⭐ ${Number(o.rating).toFixed(1).replace(".", ",")}` : ""} · ${Number(o.sales).toLocaleString("pt-BR")} vendidos`);
+  if (link) lines.push(``, `🛒 Compre aqui: ${link}`);
+  if (vip?.group_link) lines.push(`🎁 Ofertas todo dia no Grupo VIP: ${vip.group_link}`);
+  lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
+  return lines.join("\n");
+}
+// Publica na página depois do Instagram. Falha aqui nunca derruba o post do Instagram: fica em mm_ig_posts.fb_error.
+async function publishFacebook(c: any, token: string, mediaId: string, kind: "IMAGE" | "REELS", o: any, link: string, url: string, extra?: string | null) {
+  if (!c.fb_enabled || !c.page_id) return null;
+  try {
+    const message = await fbCaption(o, link, extra);
+    let postId: string;
+    if (kind === "IMAGE") {
+      const r = await graph(`/${c.page_id}/photos`, { url, caption: message, published: "true", access_token: token }, "POST");
+      postId = String(r.post_id || r.id);
+    } else {
+      // Reels da página: start → upload por URL (rupload) → finish publicado
+      const start = await graph(`/${c.page_id}/video_reels`, { upload_phase: "start", access_token: token }, "POST");
+      const up = await fetch(`https://rupload.facebook.com/video-upload/v27.0/${start.video_id}`, {
+        method: "POST", headers: { Authorization: `OAuth ${token}`, file_url: url }, signal: AbortSignal.timeout(60000),
+      });
+      const uj = await up.json().catch(() => ({}));
+      if (!up.ok || !uj.success) throw new Error(uj.debug_info?.message || uj.error?.message || `upload do Reel HTTP ${up.status}`);
+      await graph(`/${c.page_id}/video_reels`, { upload_phase: "finish", video_id: String(start.video_id), video_state: "PUBLISHED", description: message, access_token: token }, "POST");
+      postId = String(start.video_id);
+    }
+    await sql`update public.mm_ig_posts set fb_post_id = ${postId}, fb_error = null where media_id = ${mediaId}`;
+    return postId;
+  } catch (e) {
+    const m = (e as Error).message;
+    await sql`update public.mm_ig_posts set fb_error = ${m} where media_id = ${mediaId}`;
+    await logRun("ig-facebook", false, `Facebook falhou (${kind === "IMAGE" ? "foto" : "Reel"}): ${m}`, { media_id: mediaId });
+    return null;
+  }
+}
+
 // ---------- Reels ----------
 async function publishContainer(c: any, token: string, containerId: string) {
   const pub = await graph(`/${c.ig_user_id}/media_publish`, { creation_id: containerId, access_token: token }, "POST");
@@ -147,8 +192,9 @@ async function finishReel(c: any, token: string, v: any) {
   await sql`insert into public.mm_ig_posts (media_id, item_id, keyword, name, image, price, link, caption, permalink, media_type, video_id)
     values (${mediaId}, ${o.item_id}, ${o.keyword}, ${o.name}, ${v.cover_url ?? o.image}, ${o.price}, ${link}, ${cap}, ${permalink}, 'REELS', ${v.id})`;
   await setError(null);
-  await logRun("ig-reel", true, `Reel publicado (${v.source === "manual" ? "vídeo enviado" : "gerado das fotos"}): ${clean(o.name)}`, { media_id: mediaId, video_id: v.id });
-  return { posted: mediaId, type: "REELS", source: v.source, name: o.name, permalink };
+  const fb = await publishFacebook(c, token, mediaId, "REELS", o, link, v.video_url, v.caption_extra);
+  await logRun("ig-reel", true, `Reel publicado (${v.source === "manual" ? "vídeo enviado" : "gerado das fotos"})${fb ? " + Facebook" : ""}: ${clean(o.name)}`, { media_id: mediaId, video_id: v.id, fb_post_id: fb });
+  return { posted: mediaId, type: "REELS", source: v.source, name: o.name, permalink, facebook: fb };
 }
 // termina Reels que ficaram processando na Meta numa rodada anterior
 async function finishPending(c: any, token: string) {
@@ -213,8 +259,9 @@ async function postPhoto(c: any, token: string) {
   await sql`insert into public.mm_ig_posts (media_id, item_id, keyword, name, image, price, link, caption, permalink, media_type)
     values (${mediaId}, ${o.item_id}, ${o.keyword}, ${o.name}, ${o.image}, ${o.price}, ${link}, ${cap}, ${permalink}, 'IMAGE')`;
   await setError(null);
-  await logRun("ig-post", true, `foto publicada: ${clean(o.name)}`, { media_id: mediaId });
-  return { posted: mediaId, type: "IMAGE", name: o.name, permalink };
+  const fb = await publishFacebook(c, token, mediaId, "IMAGE", o, link, o.image);
+  await logRun("ig-post", true, `foto publicada${fb ? " + Facebook" : ""}: ${clean(o.name)}`, { media_id: mediaId, fb_post_id: fb });
+  return { posted: mediaId, type: "IMAGE", name: o.name, permalink, facebook: fb };
 }
 
 // ---------- rodada híbrida ----------
@@ -250,6 +297,16 @@ async function validSignature(raw: string, header: string | null) {
   let diff = 0; for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ given.charCodeAt(i);
   return diff === 0;
 }
+// resposta privada (direct) ao comentário, com o link de afiliado do post e o Grupo VIP
+async function sendDirect(c: any, token: string, commentId: string, p?: { name?: string; link?: string } | null) {
+  const [vip] = await sql`select group_link from public.mm_vip_settings where niche = 'casa'`;
+  const lines = [c.reply_text];
+  if (p?.name && p?.link) lines.push(``, `🛒 ${clean(p.name)}`, `👉 ${p.link}`);
+  if (vip?.group_link) lines.push(``, `🎁 Mais ofertas todo dia no Grupo VIP: ${vip.group_link}`);
+  lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
+  await graph(`/${c.page_id}/messages`, { recipient: JSON.stringify({ comment_id: commentId }), message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
+  await sql`update public.mm_ig_replies set replied_private = true, error = null where comment_id = ${commentId}`;
+}
 async function onComment(v: any) {
   const commentId = String(v.id || ""), mediaId = String(v.media?.id || ""), text = String(v.text || "");
   const username = String(v.from?.username || "");
@@ -261,21 +318,43 @@ async function onComment(v: any) {
   if (!ins.length) return; // já respondido
   const token = await secret("mm_meta_page_token");
   const [p] = await sql`select name, link from public.mm_ig_posts where media_id = ${mediaId}`;
-  const [vip] = await sql`select group_link from public.mm_vip_settings where niche = 'casa'`;
-  const lines = [c.reply_text];
-  if (p) lines.push(``, `🛒 ${clean(p.name)}`, `👉 ${p.link}`);
-  if (vip?.group_link) lines.push(``, `🎁 Mais ofertas todo dia no Grupo VIP: ${vip.group_link}`);
-  lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
   const errs: string[] = [];
-  try {
-    await graph(`/${c.page_id}/messages`, { recipient: JSON.stringify({ comment_id: commentId }), message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
-    await sql`update public.mm_ig_replies set replied_private = true where comment_id = ${commentId}`;
-  } catch (e) { errs.push(`direct: ${(e as Error).message}`); }
+  try { await sendDirect(c, token, commentId, p); } catch (e) { errs.push(`direct: ${(e as Error).message}`); }
   try {
     await graph(`/${commentId}/replies`, { message: PUBLIC_REPLIES[Math.floor(Math.random() * PUBLIC_REPLIES.length)], access_token: token }, "POST");
     await sql`update public.mm_ig_replies set replied_public = true where comment_id = ${commentId}`;
   } catch (e) { errs.push(`comentário: ${(e as Error).message}`); }
   if (errs.length) await sql`update public.mm_ig_replies set error = ${errs.join(" | ")} where comment_id = ${commentId}`;
+}
+
+// Busca ativa de comentários (a cada 2 min pelo pg_cron). Funciona mesmo sem o webhook da Meta, que só entrega
+// comentários de quem não tem papel no app depois da Revisão do App. onComment é idempotente (comment_id único).
+async function pollComments() {
+  const c = await config();
+  if (!c.ig_user_id) return { skipped: "Instagram ainda não conectado" };
+  const token = await secret("mm_meta_page_token");
+  const posts = await sql`select media_id from public.mm_ig_posts where posted_at > now() - interval '7 days' order by posted_at desc limit 30`;
+  let seen = 0;
+  const errors: string[] = [];
+  for (const p of posts) {
+    try {
+      const j = await graph(`/${p.media_id}/comments`, { fields: "id,text,username,from", limit: "50", access_token: token });
+      for (const cm of (j.data || []) as any[]) {
+        seen++;
+        await onComment({ id: cm.id, text: cm.text, from: { username: cm.username ?? cm.from?.username }, media: { id: p.media_id } });
+      }
+    } catch (e) { errors.push(`${p.media_id}: ${(e as Error).message}`); }
+  }
+  // directs que falharam (ex.: acesso às mensagens desligado no Instagram): tenta de novo por até 7 dias,
+  // que é a janela em que a Meta aceita resposta privada a um comentário
+  const pending = await sql`select r.comment_id, r.error, p.name, p.link from public.mm_ig_replies r left join public.mm_ig_posts p on p.media_id = r.media_id
+    where not r.replied_private and r.created_at > now() - interval '7 days' order by r.created_at limit 10`;
+  let retried = 0;
+  for (const r of pending) {
+    try { await sendDirect(c, token, r.comment_id, r); retried++; }
+    catch (e) { await sql`update public.mm_ig_replies set error = ${`direct: ${(e as Error).message}`} where comment_id = ${r.comment_id}`; }
+  }
+  return { posts: posts.length, comments: seen, directRetried: retried, directPending: pending.length - retried, errors };
 }
 
 Deno.serve(async (req) => {
@@ -296,6 +375,7 @@ Deno.serve(async (req) => {
       const b = raw ? JSON.parse(raw) : {};
       try {
         if (b.action === "setup") return json({ ok: true, ...(await setup()) });
+        if (b.action === "poll") return json({ ok: true, ...(await pollComments()) });
         if (b.action === "post") {
           const c = await config();
           // o cron roda de hora em hora; só posta nos horários configurados (b.force publica agora; b.type força "reel" ou "foto")
