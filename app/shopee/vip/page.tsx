@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import s from '../shopee.module.css'
+import InstaShare from '../InstaShare'
 import { ShopeeTabs, brl } from '../shared'
 import { LastRun } from '../DailyRanking'
 
@@ -10,7 +11,7 @@ type Settings = {
   slots: string[]; min_score: number; min_rate: number; min_sales: number; max_per_keyword: number; repeat_days: number; active: boolean
 }
 type Queue = {
-  id: number; item_id: number; keyword: string | null; name: string; image: string | null; price: number; sales: number
+  id: number; item_id: number; keyword: string | null; name: string; image: string | null; price: number; sales: number; rating: number | null
   commission: number; commission_rate: number; score: number; affiliate_link: string; message: string; slot_at: string
   status: 'pendente' | 'enviado' | 'cancelado' | 'erro'; sent_via: string | null; error: string | null
 }
@@ -114,6 +115,7 @@ export default function VipPage() {
                   <div className={`${s.actions} ${s.qActions}`}>
                     <button className={s.btn} onClick={() => copy(q.message, q.id)}>{copied === q.id ? 'COPIADO ✓' : 'COPIAR'}</button>
                     <a className={`${s.btn} ${s.btnGhost}`} href={`https://wa.me/?text=${encodeURIComponent(q.message)}`} target="_blank" rel="noopener noreferrer">WHATSAPP ↗</a>
+                    <InstaShare p={{ name: q.name, price: Number(q.price), sales: Number(q.sales), rating: Number(q.rating ?? 0), image: q.image, keyword: q.keyword ?? undefined }} />
                     {q.status !== 'enviado' && <button className={`${s.btn} ${s.btnGhost}`} onClick={() => mark(q, 'enviado')}>JÁ POSTEI</button>}
                     {q.status === 'pendente' && <button className={`${s.btn} ${s.btnGhost}`} onClick={() => mark(q, 'cancelado')}>PULAR</button>}
                     {q.status === 'cancelado' && <button className={`${s.btn} ${s.btnGhost}`} onClick={() => mark(q, 'pendente')}>VOLTAR</button>}
