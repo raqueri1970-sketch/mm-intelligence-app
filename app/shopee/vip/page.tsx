@@ -73,7 +73,7 @@ export default function VipPage() {
 
   return (
     <div className={s.page}>
-      <div className={s.head}><h1>Grupo VIP · Casa & Cozinha</h1><p>Todo dia o MM escolhe as melhores ofertas de casa e cozinha, gera seu link de afiliado (Sub ID <b>zapvip</b>) e agenda uma mensagem por horário.</p></div>
+      <div className={s.head}><h1>Grupo VIP · Casa em Conta</h1><p>Todo dia o MM escolhe as melhores ofertas de casa e cozinha, gera seu link de afiliado (Sub ID <b>zapvip</b>) e agenda uma mensagem por horário.</p></div>
       <ShopeeTabs />
 
       <div className={s.stats}>
@@ -84,7 +84,7 @@ export default function VipPage() {
       </div>
 
       <section className={s.panel}>
-        <div className={s.panelHead}><div><h2>Link da bio do Instagram</h2><p>Coloque este link na bio da @{st?.instagram_handle || 'larorganizadoachados'}. Ele conta os cliques e abre o grupo.</p></div>
+        <div className={s.panelHead}><div><h2>Link da bio do Instagram</h2><p>Coloque este link na bio da @{st?.instagram_handle || 'casaemconta'}. Ele conta os cliques e abre o grupo.</p></div>
           <button className={s.btn} onClick={() => copy(BIO_LINK, 'bio')}>{copied === 'bio' ? 'COPIADO ✓' : 'COPIAR LINK DA BIO'}</button></div>
         <code style={{ fontSize: 13, color: 'var(--text2)' }}>{BIO_LINK}</code>
         {!st?.group_link && <p className={`${s.hint} ${s.wait}`}>Falta o link de convite do grupo: enquanto isso, quem clicar vê “o grupo abre em breve”.</p>}

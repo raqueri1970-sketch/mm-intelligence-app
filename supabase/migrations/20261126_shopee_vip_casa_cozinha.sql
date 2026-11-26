@@ -36,7 +36,7 @@ create policy "bio registra clique" on public.mm_vip_clicks for insert to anon, 
 create policy "painel le cliques" on public.mm_vip_clicks for select to anon, authenticated using (true);
 
 insert into public.mm_vip_settings (niche, title, instagram_handle)
-values ('casa', 'Lar Organizado Achados VIP', 'larorganizadoachados') on conflict (niche) do nothing;
+values ('casa', 'Casa em Conta VIP', 'casaemconta') on conflict (niche) do nothing;
 
 update public.mm_shopee_keywords set niche = 'casa'
  where keyword in ('organizador cozinha','organizador geladeira','dispenser detergente','mop giratorio','mini processador eletrico','luminaria sensor','aspirador portatil','umidificador');
