@@ -75,6 +75,7 @@ export const SHOPEE_TABS=[
  {href:'/shopee/relatorio',label:'Relatório'},
  {href:'/shopee/vip',label:'Grupo VIP'},
  {href:'/shopee/natal',label:'🎄 Natal'},
+ {href:'/shopee/tendencias',label:'🔥 Em alta'},
 ]
 
 export function ShopeeTabs(){
