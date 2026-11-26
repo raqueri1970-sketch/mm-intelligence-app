@@ -39,9 +39,20 @@ const groups: NavGroup[] = [
       { href: '/shopee/subid', label: 'Sub ID', icon: <span style={{ color: SH }}>#</span> },
       { href: '/shopee/relatorio', label: 'Relatório', icon: <span style={{ color: SH }}>$</span> },
       { href: '/shopee/vip', label: 'Grupo VIP', icon: <span style={{ color: SH }}>★</span> },
+      { href: '/shopee/natal', label: 'Achados de Natal', icon: <span>🎄</span> },
     ],
   },
 ]
+
+// Barra de abas do app no celular (PWA): o que se usa todo dia no Shopee Afiliado.
+const TABS = [
+  { href: '/shopee/vip', label: 'Hoje', icon: '★' },
+  { href: '/shopee/natal', label: 'Natal', icon: '🎄' },
+  { href: '/shopee/minerador', label: 'Buscar', icon: '🔍' },
+  { href: '/shopee/relatorio', label: 'Ganhos', icon: 'R$' },
+]
+
+type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
 
 function crumb(path: string) {
   for (const g of groups) for (const n of g.items) if (n.href === path) {
@@ -56,6 +67,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [collapsed, setCollapsed] = useState(false)
   const [lang, setLang] = useState('pt')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [install, setInstall] = useState<InstallEvent | null>(null)
+  const [iosTip, setIosTip] = useState(false)
+
+  // App instalável: registra o service worker e oferece "Instalar" (Android/Chrome) ou a dica do iPhone.
+  useEffect(() => {
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {})
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+    const onPrompt = (e: Event) => { e.preventDefault(); setInstall(e as InstallEvent) }
+    const onInstalled = () => setInstall(null)
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    let dismissed = false
+    try { dismissed = localStorage.getItem('mm-ios-tip') === '1' } catch {}
+    if (!standalone && !dismissed && /iphone|ipad|ipod/i.test(navigator.userAgent)) setIosTip(true)
+    return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled) }
+  }, [])
+  const closeIosTip = () => { setIosTip(false); try { localStorage.setItem('mm-ios-tip', '1') } catch {} }
+  async function doInstall() {
+    if (!install) return
+    await install.prompt()
+    await install.userChoice.catch(() => null)
+    setInstall(null)
+  }
 
   // No celular o menu é uma gaveta: fecha ao trocar de página e trava o scroll do fundo enquanto aberto.
   useEffect(() => { setMenuOpen(false) }, [path])
@@ -100,9 +134,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     <main className="mm-main">
       <header className="mm-topbar">
         <div className="mm-topbar__left"><button type="button" className="mm-burger" onClick={() => setMenuOpen(o => !o)} aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={menuOpen} aria-controls="mm-sidebar">{menuOpen ? '✕' : '☰'}</button><span className="mm-topbar__path">{crumb(path)}</span></div>
-        <div className="mm-topbar__right"><div className="mm-topbar__status"><span className="mm-pulse" />Minerador ativo</div><div className="mm-topbar__stores"><span className="mm-store-badge mm-store-badge--mx">🇲🇽 MX</span><span className="mm-store-badge mm-store-badge--us">🇺🇸 US</span><span className="mm-store-badge mm-store-badge--br">🇧🇷 BR</span></div></div>
+        <div className="mm-topbar__right">{install && <button type="button" className="mm-install" onClick={doInstall}>⬇ Instalar app</button>}<div className="mm-topbar__status"><span className="mm-pulse" />Minerador ativo</div><div className="mm-topbar__stores"><span className="mm-store-badge mm-store-badge--mx">🇲🇽 MX</span><span className="mm-store-badge mm-store-badge--us">🇺🇸 US</span><span className="mm-store-badge mm-store-badge--br">🇧🇷 BR</span></div></div>
       </header>
+      {iosTip && <div className="mm-iostip" role="note"><span>📲 Para instalar no iPhone: toque em <b>Compartilhar</b> <span aria-hidden="true">⎋</span> e depois em <b>Adicionar à Tela de Início</b>.</span><button type="button" onClick={closeIosTip} aria-label="Fechar dica">✕</button></div>}
       <div className="mm-content">{children}</div>
     </main>
+    <nav className="mm-tabbar" aria-label="Atalhos do app">
+      {TABS.map(t => {
+        const on = path === t.href
+        return <Link key={t.href} href={t.href} className={'mm-tabbar__item' + (on ? ' mm-tabbar__item--on' : '')} aria-current={on ? 'page' : undefined}><span className="mm-tabbar__icon">{t.icon}</span>{t.label}</Link>
+      })}
+      <button type="button" className={'mm-tabbar__item' + (menuOpen ? ' mm-tabbar__item--on' : '')} onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen} aria-controls="mm-sidebar"><span className="mm-tabbar__icon">☰</span>Menu</button>
+    </nav>
   </>
 }
