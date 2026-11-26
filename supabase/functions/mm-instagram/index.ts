@@ -7,7 +7,7 @@
 // Segredos só no cofre: mm_meta_app_secret, mm_meta_user_token, mm_meta_page_token, mm_ig_verify_token, mm_cron_secret.
 import postgres from "npm:postgres@3.4.3";
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { prepare: false, max: 2 });
-const GRAPH = "https://graph.facebook.com/v22.0";
+const GRAPH = "https://graph.facebook.com/v27.0";
 const APP = "https://mm-intelligence-app.vercel.app";
 const H = { "Content-Type": "application/json" };
 const WANT = /\b(eu\s*quero|quero|link|eu\s*qro|qro|onde\s+compr|manda)\b/i;
@@ -50,9 +50,14 @@ async function setup() {
   const appSecret = await secret("mm_meta_app_secret");
   const userToken = await secret("mm_meta_user_token");
   if (!appSecret || !userToken) throw new Error("faltam no cofre: mm_meta_app_secret e/ou mm_meta_user_token");
-  // 1. token de usuário de 60 dias → 2. tokens de página (não expiram)
-  const long = await graph("/oauth/access_token", { grant_type: "fb_exchange_token", client_id: c.app_id, client_secret: appSecret, fb_exchange_token: userToken });
-  const pages = await graph("/me/accounts", { fields: "id,name,access_token,instagram_business_account{id,username}", limit: "50", access_token: long.access_token });
+  // 1. token de usuário de 60 dias (se a Meta não aceitar a troca, como em tokens de usuário do sistema, usa o próprio token)
+  let baseToken = userToken;
+  try {
+    const long = await graph("/oauth/access_token", { grant_type: "fb_exchange_token", client_id: c.app_id, client_secret: appSecret, fb_exchange_token: userToken });
+    if (long.access_token) baseToken = long.access_token;
+  } catch { /* segue com o token original */ }
+  // 2. tokens de página (derivados de um token longo, não expiram)
+  const pages = await graph("/me/accounts", { fields: "id,name,access_token,instagram_business_account{id,username}", limit: "50", access_token: baseToken });
   const list = (pages.data || []) as any[];
   const page = list.find((p) => p.instagram_business_account?.username?.toLowerCase() === "kliccasa") ?? list.find((p) => p.instagram_business_account);
   if (!page) throw new Error(`nenhuma página com Instagram ligado (páginas vistas: ${list.map((p) => p.name).join(", ") || "nenhuma"})`);
