@@ -34,7 +34,7 @@ export default function VipPage() {
     const { data } = await supabase.from('mm_vip_settings').select('*').eq('niche', NICHE).maybeSingle()
     setSt(data as Settings | null); setForm((data as Settings) ?? {})
     const since = new Date(Date.now() - 2 * 86400000).toISOString()
-    const { data: q } = await supabase.from('mm_vip_queue').select('*').eq('niche', NICHE).gte('slot_at', since).order('slot_at', { ascending: false }).limit(40)
+    const { data: q } = await supabase.from('mm_vip_queue').select('*').eq('niche', NICHE).gte('slot_at', since).order('slot_at', { ascending: false }).limit(150)
     setQueue((q as Queue[]) ?? [])
     const week = new Date(Date.now() - 7 * 86400000).toISOString()
     const startToday = new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) + 'T00:00:00-03:00').toISOString()
@@ -128,7 +128,7 @@ export default function VipPage() {
       </section>
 
       <section className={s.panel}>
-        <div className={s.panelHead}><div><h2>Configuração do grupo</h2><p>Horários: {st?.slots.join(' · ')}. Só entram ofertas que passam nos filtros e que não foram postadas nos últimos {st?.repeat_days ?? 7} dias.</p></div></div>
+        <div className={s.panelHead}><div><h2>Configuração do grupo</h2><p>{st && st.slots.length > 8 ? `${st.slots.length} ofertas por dia, das ${st.slots[0]} às ${st.slots[st.slots.length - 1]}` : `Horários: ${st?.slots.join(' · ')}`}. Só entram ofertas que passam nos filtros e que não foram postadas nos últimos {st?.repeat_days ?? 7} dias.</p></div></div>
         <div className={s.row}>
           <input className={`${s.input} ${s.grow}`} placeholder="Link de convite do grupo (https://chat.whatsapp.com/...)" value={form.group_link ?? ''} onChange={e => setForm(f => ({ ...f, group_link: e.target.value }))} />
           <input className={s.input} placeholder="@ do Instagram" value={form.instagram_handle ?? ''} onChange={e => setForm(f => ({ ...f, instagram_handle: e.target.value }))} />
