@@ -47,7 +47,21 @@ const HOOKS: Record<string, string[]> = {
   "luminaria sensor": ["Acende sozinha quando você passa", "Nunca mais tropeçar no escuro"],
   "aspirador portatil": ["Migalha no sofá? Resolve em segundos", "Aspirador que cabe na gaveta"],
   "umidificador": ["Ar seco no quarto? Olha esse", "Respira melhor no ar seco"],
+  // Natal
+  "pisca pisca natal": ["A casa já tá piscando pro Natal?", "Pisca-pisca campeão de vendas chegou"],
+  "luz natal": ["Luzinha que deixa a casa com clima de Natal", "Natal mais iluminado gastando pouco"],
+  "arvore de natal": ["Árvore de Natal montada sem gastar muito", "Deixa a árvore de Natal mais linda"],
+  "bola de natal": ["Árvore de Natal com cara de loja", "Enfeite que transforma a árvore"],
+  "enfeite natal": ["Enfeite de Natal que todo mundo tá comprando", "Casa no clima de Natal com pouco"],
+  "decoracao natal": ["Decoração de Natal que dá vontade de copiar", "Natal decorado sem pesar no bolso"],
+  "guirlanda natal": ["A porta de casa pronta pro Natal", "Guirlanda que recebe a visita com estilo"],
+  "papai noel decoracao": ["O Papai Noel já chegou aqui em casa", "Decoração de Natal que as crianças amam"],
+  "toalha mesa natal": ["Mesa da ceia pronta pra foto", "Ceia de Natal com mesa de revista"],
 };
+// Até a véspera de Natal os itens natalinos ganham prioridade na fila; depois voltam ao normal.
+const XMAS_KW = /natal|noel|natalin/i;
+function xmasSeason(dateBR: string) { const md = dateBR.slice(5); return md >= "11-01" && md <= "12-24"; }
+const XMAS_BOOST = 20;
 const GENERIC = ["Achadinho pra casa que vale cada centavo", "Esse aqui resolveu minha vida em casa", "Achado do dia pra sua casa", "Utilidade que todo lar precisa"];
 
 const brl = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -60,7 +74,7 @@ export function buildMessage(o: { item_id: number; keyword: string; name: string
   const pool = HOOKS[o.keyword] ?? GENERIC;
   const hook = pool[Number(o.item_id) % pool.length];
   const lines = [
-    `🏠 *${hook}*`,
+    `${XMAS_KW.test(o.keyword) ? "🎄" : "🏠"} *${hook}*`,
     ``,
     shortName(o.name),
     `💰 *${brl(o.price)}*`,
@@ -111,6 +125,11 @@ async function build(st: Settings) {
                                       and slot_at < (${date + "T00:00:00" + BR_OFFSET}::timestamptz + interval '1 day')`)
     .map((r: any) => new Date(r.slot_at).toISOString()));
   const free = st.slots.map((h) => new Date(`${date}T${h}:00${BR_OFFSET}`).toISOString()).filter((s) => !taken.has(s));
+
+  if (xmasSeason(date)) {
+    const rank = (o: Offer) => o.score + (XMAS_KW.test(o.keyword) ? XMAS_BOOST : 0);
+    offers.sort((a, b) => rank(b) - rank(a));
+  }
 
   const perKw = new Map<string, number>();
   const picked: Offer[] = [];
@@ -178,7 +197,7 @@ async function send(st: Settings) {
   const due = await sql`select * from public.mm_vip_queue where niche = ${st.niche} and status = 'pendente'
                           and slot_at <= now() and slot_at > now() - interval '3 hours' order by slot_at`;
   if (!due.length) return { sent: 0, msg: "nada para enviar agora" };
-  if (!st.whatsapp_group_id) return { sent: 0, waiting: due.length, msg: `${due.length} pronta(s) para postar pelo painel (grupo do WhatsApp ainda não configurado)` };
+  if (!st.whatsapp_group_id) return { sent: 0, waiting: due.length, msg: `${due.length} pronta(s) para postar pelo painel (envio automático pela Z-API ainda não ligado)` };
   let sent = 0; const errors: string[] = [];
   for (const raw of due) {
     const q = await recheck(raw);

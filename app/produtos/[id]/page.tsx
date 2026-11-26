@@ -83,7 +83,7 @@ export default function ProdutoPage() {
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
           <div className="mm-card">
             <div className="mm-card__body">
-              <div style={{display:'grid',gridTemplateColumns:'minmax(180px,260px) 1fr',gap:18,alignItems:'stretch'}}>
+              <div className="mm-r-stack" style={{display:'grid',gridTemplateColumns:'minmax(180px,260px) 1fr',gap:18,alignItems:'stretch'}}>
                 <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:12,minHeight:240,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
                   {hasImage ? (
                     <img src={product.image_url} alt={product.name}
@@ -112,7 +112,7 @@ export default function ProdutoPage() {
                     </div>
                   </div>
 
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
+                  <div className="mm-r-stack" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
                     {[
                       ['Preço de Venda', product.price ? '$'+product.price : '—', '#f8f6ff'],
                       ['CPA Ideal', product.cpa_ideal ? '$'+product.cpa_ideal : '—', '#34d399'],
@@ -133,7 +133,7 @@ export default function ProdutoPage() {
           <div className="mm-card">
             <div className="mm-card__header"><span className="mm-card__title">Janela de Oportunidade</span></div>
             <div className="mm-card__body">
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div className="mm-r-stack" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                 {[['🇺🇸 USA',product.window_us_days],['🇲🇽 México',product.window_mx_days]].map(([l,v]) => (
                   <div key={l as string} style={{background:'var(--bg3)',borderRadius:10,padding:14,textAlign:'center',border:'1px solid var(--border)'}}>
                     <div style={{fontSize:12,color:'var(--text3)',marginBottom:6}}>{l}</div>

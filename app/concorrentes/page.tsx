@@ -69,7 +69,7 @@ export default function ConcorrentesPage(){
     </div>
 
     <form onSubmit={addStore} className="mm-card" style={{padding:18,marginBottom:20}}>
-      <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 100px 160px',gap:10}}>
+      <div className="mm-r-stack" style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) 100px 160px',gap:10}}>
         <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://loja.com" style={{height:44,border:'1px solid var(--border)',borderRadius:9,background:'var(--bg2)',color:'var(--text1)',padding:'0 13px',fontSize:14}} />
         <select value={market} onChange={e=>setMarket(e.target.value)} style={{height:44,border:'1px solid var(--border)',borderRadius:9,background:'var(--bg2)',color:'var(--text1)',padding:'0 10px'}}><option value="US">🇺🇸 US</option><option value="MX">🇲🇽 MX</option></select>
         <button disabled={loading} style={{height:44,border:0,borderRadius:9,background:'var(--purple)',color:'#fff',fontWeight:800,cursor:loading?'wait':'pointer'}}>{loading?'ANALISANDO...':'ADICIONAR LOJA'}</button>
