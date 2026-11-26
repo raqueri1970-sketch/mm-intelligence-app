@@ -1,7 +1,10 @@
 // MM · Instagram automático (@kliccasa) pela API da Meta (login do Facebook).
 //   POST {action:"setup"}  (x-mm-cron): troca o token curto do cofre (mm_meta_user_token) por um token de página
 //                          que não expira, acha a página e o Instagram ligados, assina os webhooks de comentários.
-//   POST {action:"post"}   (x-mm-cron): publica no feed a melhor oferta do dia ainda não postada (foto + legenda).
+//   POST {action:"post"}   (x-mm-cron): HÍBRIDO — nos horários de Reel (mm_ig_config.reel_slots) publica um vídeo
+//                          pronto de mm_ig_videos (o enviado no painel tem prioridade sobre o gerado das fotos);
+//                          nos outros horários, ou sem vídeo pronto, publica foto + legenda.
+//                          Fora do horário só termina Reels que a Meta ainda estava processando.
 //   GET  ?hub.challenge    (Meta): confirmação do webhook.
 //   POST (Meta, assinado): comentário novo → se for "EU QUERO", manda o link no direct e responde no post.
 // Segredos só no cofre: mm_meta_app_secret, mm_meta_user_token, mm_meta_page_token, mm_ig_verify_token, mm_cron_secret.
@@ -14,6 +17,7 @@ const WANT = /\b(eu\s*quero|quero|link|eu\s*qro|qro|onde\s+compr|manda)\b/i;
 const PUBLIC_REPLIES = ["Te mandei no direct! 📩", "Enviei o link no seu direct 😉", "Já tá no seu direct! 🎄", "Mandei no direct, corre que acaba! 🛒"];
 
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: H });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function secret(name: string) {
   const r = await sql`select decrypted_secret from vault.decrypted_secrets where name = ${name}`;
   return (r[0]?.decrypted_secret as string) || "";
@@ -49,7 +53,7 @@ async function setup() {
   const c = await config();
   const appSecret = await secret("mm_meta_app_secret");
   const userToken = await secret("mm_meta_user_token");
-  if (!appSecret || !userToken) throw new Error("faltam no cofre: mm_meta_app_secret e/ou mm_meta_user_token");
+  if (!appSecret || !userToken || userToken === "usado") throw new Error("faltam no cofre: mm_meta_app_secret e/ou mm_meta_user_token (token novo)");
   // 1. token de usuário de 60 dias (se a Meta não aceitar a troca, como em tokens de usuário do sistema, usa o próprio token)
   let baseToken = userToken;
   try {
@@ -85,16 +89,18 @@ async function setup() {
   return { page: page.name, instagram: page.instagram_business_account.username, webhookOk, webhookErr };
 }
 
-// ---------- post no feed ----------
+// ---------- legenda e link ----------
 const brl = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const clean = (n: string) => { const t = n.replace(/\s+/g, " ").trim(); return t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, "") + "…" : t; };
-function caption(o: any) {
+const clean = (n: string) => { const t = String(n || "").replace(/\s+/g, " ").trim(); return t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, "") + "…" : t; };
+function caption(o: any, extra?: string | null) {
   const xmas = /natal|noel|natalin|reveillon/i.test(`${o.keyword} ${o.name}`);
   const tags = xmas
     ? "#achadinhos #achadinhosshopee #shopee #natal #decoracaodenatal #natal2026 #arvoredenatal #casadecorada #promocao"
     : "#achadinhos #achadinhosshopee #shopee #achadinhosdecasa #casaorganizada #utilidadesdomesticas #promocao";
+  const head = [`${xmas ? "🎄" : "🏠"} ${clean(o.name)}`];
+  if (extra) head.push(``, String(extra).trim());
   return [
-    `${xmas ? "🎄" : "🏠"} ${clean(o.name)}`, ``,
+    ...head, ``,
     `💰 ${brl(o.price)}${Number(o.rating) >= 4 ? ` · ⭐ ${Number(o.rating).toFixed(1).replace(".", ",")}` : ""} · ${Number(o.sales).toLocaleString("pt-BR")} vendidos`, ``,
     `💬 Comente EU QUERO que eu te mando o link no direct`,
     `🔗 Ou entre no Grupo VIP pelo link do perfil: ofertas o dia todo`, ``, tags,
@@ -106,38 +112,130 @@ async function shortLink(url: string, subIds: string[]) {
   if (!r.ok || !j.shortLink) throw new Error(j.error || `shortlink HTTP ${r.status}`);
   return j.shortLink as string;
 }
-async function post(force = false) {
-  const c = await config();
-  if (!c.ig_user_id) return { skipped: "Instagram ainda não conectado" };
-  if (!c.posting_enabled && !force) return { skipped: "posts automáticos desligados no painel" };
-  const token = await secret("mm_meta_page_token");
-  // melhor oferta do dia (fila do Grupo VIP) que ainda não foi para o Instagram nos últimos 10 dias
+async function linkFor(o: any, kind: string) {
+  let link = o.affiliate_link;
+  if (o.product_link) { try { link = await shortLink(o.product_link, ["insta", kind, String(o.item_id)]); } catch { /* fica o link do grupo */ } }
+  return link;
+}
+// dados do produto: última aparição na fila do Grupo VIP
+async function product(itemId: number | string) {
+  const [o] = await sql`
+    select q.item_id, q.keyword, q.name, q.image, q.price::float8 price, q.sales, q.rating::float8 rating, q.product_link, q.affiliate_link
+      from public.mm_vip_queue q where q.item_id = ${itemId} order by q.created_at desc limit 1`;
+  return o as any;
+}
+
+// ---------- Reels ----------
+async function publishContainer(c: any, token: string, containerId: string) {
+  const pub = await graph(`/${c.ig_user_id}/media_publish`, { creation_id: containerId, access_token: token }, "POST");
+  const info = await graph(`/${pub.id}`, { fields: "permalink", access_token: token }).catch(() => ({}));
+  return { mediaId: String(pub.id), permalink: (info as any).permalink ?? null };
+}
+async function finishReel(c: any, token: string, v: any) {
+  const st = await graph(`/${v.container_id}`, { fields: "status_code,status", access_token: token });
+  if (st.status_code === "ERROR" || st.status_code === "EXPIRED") {
+    const m = `a Meta recusou o vídeo: ${st.status || st.status_code}`;
+    await sql`update public.mm_ig_videos set status = 'erro', error = ${m}, updated_at = now() where id = ${v.id}`;
+    throw new Error(m);
+  }
+  if (st.status_code !== "FINISHED") return null; // ainda processando
+  const o = await product(v.item_id);
+  const cap = caption(o, v.caption_extra);
+  const link = await linkFor(o, "reel");
+  const { mediaId, permalink } = await publishContainer(c, token, v.container_id);
+  await sql`update public.mm_ig_videos set status = 'publicado', media_id = ${mediaId}, error = null, updated_at = now() where id = ${v.id}`;
+  await sql`insert into public.mm_ig_posts (media_id, item_id, keyword, name, image, price, link, caption, permalink, media_type, video_id)
+    values (${mediaId}, ${o.item_id}, ${o.keyword}, ${o.name}, ${v.cover_url ?? o.image}, ${o.price}, ${link}, ${cap}, ${permalink}, 'REELS', ${v.id})`;
+  await setError(null);
+  await logRun("ig-reel", true, `Reel publicado (${v.source === "manual" ? "vídeo enviado" : "gerado das fotos"}): ${clean(o.name)}`, { media_id: mediaId, video_id: v.id });
+  return { posted: mediaId, type: "REELS", source: v.source, name: o.name, permalink };
+}
+// termina Reels que ficaram processando na Meta numa rodada anterior
+async function finishPending(c: any, token: string) {
+  const pend = await sql`select * from public.mm_ig_videos where status = 'processando' order by updated_at limit 3`;
+  const out: unknown[] = [];
+  for (const v of pend) {
+    if (Date.now() - new Date(v.updated_at).getTime() > 6 * 3600 * 1000) {
+      await sql`update public.mm_ig_videos set status = 'erro', error = 'a Meta não terminou de processar em 6h', updated_at = now() where id = ${v.id}`;
+      continue;
+    }
+    try { const r = await finishReel(c, token, v); if (r) out.push(r); } catch (e) { out.push({ video_id: v.id, error: (e as Error).message }); }
+  }
+  return out;
+}
+async function postReel(c: any, token: string, v: any) {
+  const o = await product(v.item_id);
+  if (!o) {
+    await sql`update public.mm_ig_videos set status = 'erro', error = 'produto não encontrado na fila do Grupo VIP', updated_at = now() where id = ${v.id}`;
+    return null;
+  }
+  const params: Record<string, string> = { media_type: "REELS", video_url: v.video_url, caption: caption(o, v.caption_extra), share_to_feed: "true", access_token: token };
+  if (v.cover_url) params.cover_url = v.cover_url;
+  let created: any;
+  try { created = await graph(`/${c.ig_user_id}/media`, params, "POST"); }
+  catch (e) {
+    await sql`update public.mm_ig_videos set status = 'erro', error = ${(e as Error).message}, updated_at = now() where id = ${v.id}`;
+    throw e;
+  }
+  await sql`update public.mm_ig_videos set status = 'processando', container_id = ${String(created.id)}, updated_at = now() where id = ${v.id}`;
+  v.container_id = String(created.id);
+  // vídeo demora mais que foto: espera até ~100 s; se não terminar, a próxima rodada publica
+  for (let i = 0; i < 10; i++) {
+    await sleep(10000);
+    const r = await finishReel(c, token, v);
+    if (r) return r;
+  }
+  return { pending: v.id, type: "REELS", note: "a Meta ainda está processando; publica na próxima rodada" };
+}
+
+// ---------- foto ----------
+async function postPhoto(c: any, token: string) {
+  // melhor oferta do dia que não foi postada nos últimos 10 dias e não está reservada para um Reel
   const [o] = await sql`
     select q.item_id, q.keyword, q.name, q.image, q.price::float8 price, q.sales, q.rating::float8 rating, q.product_link, q.affiliate_link
       from public.mm_vip_queue q
      where q.niche = 'casa' and q.status <> 'cancelado' and q.image is not null
        and (q.slot_at at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date
        and not exists (select 1 from public.mm_ig_posts p where p.item_id = q.item_id and p.posted_at > now() - interval '10 days')
+       and not exists (select 1 from public.mm_ig_videos v where v.item_id = q.item_id and v.status in ('editar','editando','pronto','processando'))
      order by q.commission desc, q.sales desc limit 1`;
   if (!o) return { skipped: "nenhuma oferta nova na fila de hoje" };
-  let link = o.affiliate_link;
-  if (o.product_link) { try { link = await shortLink(o.product_link, ["insta", "post", String(o.item_id)]); } catch { /* fica o link do grupo */ } }
+  const link = await linkFor(o, "post");
   const cap = caption(o);
   const created = await graph(`/${c.ig_user_id}/media`, { image_url: o.image, caption: cap, access_token: token }, "POST");
-  // a Meta processa a foto antes de publicar
   for (let i = 0; i < 10; i++) {
     const st = await graph(`/${created.id}`, { fields: "status_code", access_token: token });
     if (st.status_code === "FINISHED") break;
     if (st.status_code === "ERROR") throw new Error("a Meta recusou a foto do produto");
-    await new Promise((r) => setTimeout(r, 3000));
+    await sleep(3000);
   }
-  const pub = await graph(`/${c.ig_user_id}/media_publish`, { creation_id: created.id, access_token: token }, "POST");
-  const info = await graph(`/${pub.id}`, { fields: "permalink", access_token: token }).catch(() => ({}));
-  await sql`insert into public.mm_ig_posts (media_id, item_id, keyword, name, image, price, link, caption, permalink)
-    values (${pub.id}, ${o.item_id}, ${o.keyword}, ${o.name}, ${o.image}, ${o.price}, ${link}, ${cap}, ${info.permalink ?? null})`;
+  const { mediaId, permalink } = await publishContainer(c, token, created.id);
+  await sql`insert into public.mm_ig_posts (media_id, item_id, keyword, name, image, price, link, caption, permalink, media_type)
+    values (${mediaId}, ${o.item_id}, ${o.keyword}, ${o.name}, ${o.image}, ${o.price}, ${link}, ${cap}, ${permalink}, 'IMAGE')`;
   await setError(null);
-  await logRun("ig-post", true, `post publicado: ${clean(o.name)}`, { media_id: pub.id });
-  return { posted: pub.id, name: o.name, permalink: info.permalink };
+  await logRun("ig-post", true, `foto publicada: ${clean(o.name)}`, { media_id: mediaId });
+  return { posted: mediaId, type: "IMAGE", name: o.name, permalink };
+}
+
+// ---------- rodada híbrida ----------
+async function post(opts: { force: boolean; inSlot: boolean; slot: string; type?: string }) {
+  const c = await config();
+  if (!c.ig_user_id) return { skipped: "Instagram ainda não conectado" };
+  const token = await secret("mm_meta_page_token");
+  const finished = await finishPending(c, token);
+  if (!opts.inSlot) return { skipped: "fora do horário", finished };
+  if (!c.posting_enabled && !opts.force) return { skipped: "posts automáticos desligados no painel", finished };
+  if (finished.some((f: any) => f.posted)) return { finished }; // o Reel atrasado já ocupou este horário
+  const reelSlot = opts.type ? opts.type === "reel" : (c.reel_slots || []).includes(opts.slot);
+  if (reelSlot) {
+    // vídeo enviado no painel primeiro, depois o gerado das fotos; sem vídeo pronto → foto
+    const [v] = await sql`select * from public.mm_ig_videos where status = 'pronto' order by (source = 'manual') desc, created_at limit 1`;
+    if (v) {
+      const r = await postReel(c, token, v);
+      if (r) return { ...r, finished };
+    }
+  }
+  return { ...(await postPhoto(c, token)), finished };
 }
 
 // ---------- comentários (webhook da Meta) ----------
@@ -168,7 +266,7 @@ async function onComment(v: any) {
   if (p) lines.push(``, `🛒 ${clean(p.name)}`, `👉 ${p.link}`);
   if (vip?.group_link) lines.push(``, `🎁 Mais ofertas todo dia no Grupo VIP: ${vip.group_link}`);
   lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
-  let errs: string[] = [];
+  const errs: string[] = [];
   try {
     await graph(`/${c.page_id}/messages`, { recipient: JSON.stringify({ comment_id: commentId }), message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
     await sql`update public.mm_ig_replies set replied_private = true where comment_id = ${commentId}`;
@@ -200,10 +298,10 @@ Deno.serve(async (req) => {
         if (b.action === "setup") return json({ ok: true, ...(await setup()) });
         if (b.action === "post") {
           const c = await config();
-          // só posta nos horários configurados (o cron roda de hora em hora)
-          const now = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(11, 13) + ":00";
-          if (!b.force && !(c.post_slots || []).includes(now)) return json({ ok: true, skipped: `fora do horário (${now})` });
-          return json({ ok: true, ...(await post(Boolean(b.force))) });
+          // o cron roda de hora em hora; só posta nos horários configurados (b.force publica agora; b.type força "reel" ou "foto")
+          const slot = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(11, 13) + ":00";
+          const inSlot = Boolean(b.force) || (c.post_slots || []).includes(slot);
+          return json({ ok: true, slot, ...(await post({ force: Boolean(b.force), inSlot, slot, type: b.type })) });
         }
         return json({ ok: false, error: "ação desconhecida" }, 400);
       } catch (e) {

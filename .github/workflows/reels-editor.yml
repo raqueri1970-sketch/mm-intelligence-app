@@ -1,0 +1,36 @@
+name: MM Reels Editor (Instagram @kliccasa)
+
+# Edita os vídeos enviados no painel (/shopee/instagram) e gera Reels a partir das fotos dos produtos.
+# A publicação continua na função mm-instagram do Supabase, nos horários de Reel.
+# Sem chaves no GitHub: a função mm-video-api confere o token OIDC que o GitHub emite para este workflow.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/reels-editor.py'
+      - '.github/workflows/reels-editor.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: reels-editor
+  cancel-in-progress: false
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instala ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core > /dev/null
+          ffmpeg -version | head -1
+      - name: Edita e gera os Reels
+        run: python3 scripts/reels-editor.py
