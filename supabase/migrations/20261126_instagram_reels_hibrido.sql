@@ -36,3 +36,12 @@ grant update (reel_slots) on public.mm_ig_config to anon, authenticated;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('mm-videos', 'mm-videos', true, 104857600, array['video/mp4','video/quicktime','image/jpeg'])
 on conflict (id) do nothing;
+
+-- página do Facebook: cada foto/Reel do Instagram também sai na página (aplicado em produção em 26/11/2026)
+alter table public.mm_ig_config add column if not exists fb_enabled boolean not null default false;
+alter table public.mm_ig_posts add column if not exists fb_post_id text;
+alter table public.mm_ig_posts add column if not exists fb_error text;
+
+-- busca ativa de comentários "EU QUERO" (o webhook da Meta só entrega comentários de quem tem papel no app até a Revisão do App)
+select cron.schedule('mm-instagram-comentarios', '*/2 * * * *',
+  $$select net.http_post(url:=(select decrypted_secret from vault.decrypted_secrets where name='mm_project_url')||'/functions/v1/mm-instagram',headers:=jsonb_build_object('Content-Type','application/json','x-mm-cron',(select decrypted_secret from vault.decrypted_secrets where name='mm_cron_secret')),body:='{"action":"poll"}'::jsonb,timeout_milliseconds:=60000);$$);
