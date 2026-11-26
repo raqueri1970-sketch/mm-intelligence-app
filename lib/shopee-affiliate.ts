@@ -32,10 +32,26 @@ export async function shopeeConfigured() {
   try { return Boolean((await bridge({ action: 'status' })).json?.configured) } catch { return false }
 }
 
+// A Shopee devolve "System Error [10000]" de vez em quando; quase sempre passa na segunda tentativa.
+const TRANSIENT = /\[?10000\]?|system error|timeout|ECONNRESET|fetch failed/i
 export async function shopeeGraphQL<T = Record<string, unknown>>(
   query: string,
   variables: Record<string, unknown>,
   opts: { cronSecret?: string } = {},
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await shopeeGraphQLOnce<T>(query, variables, opts) }
+    catch (e) {
+      if (attempt >= 2 || e instanceof ShopeeConfigError || !TRANSIENT.test(String((e as Error)?.message))) throw e
+      await new Promise(r => setTimeout(r, 1200 * (attempt + 1)))
+    }
+  }
+}
+
+async function shopeeGraphQLOnce<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  opts: { cronSecret?: string },
 ): Promise<T> {
   let json: { data?: unknown; errors?: { message?: string }[]; error?: string }
   if (hasEnvKeys()) {

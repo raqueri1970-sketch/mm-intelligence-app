@@ -62,6 +62,7 @@ const HOOKS: Record<string, string[]> = {
 const XMAS_KW = /natal|noel|natalin/i;
 function xmasSeason(dateBR: string) { const md = dateBR.slice(5); return md >= "11-01" && md <= "12-24"; }
 const XMAS_BOOST = 20;
+const XMAS_GENERIC = ["Achado de Natal que tá vendendo muito", "Casa no clima de Natal gastando pouco", "Decoração de Natal que todo mundo tá levando", "Pro Natal ficar mais bonito aí em casa"];
 const GENERIC = ["Achadinho pra casa que vale cada centavo", "Esse aqui resolveu minha vida em casa", "Achado do dia pra sua casa", "Utilidade que todo lar precisa"];
 
 const brl = (v: number) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -71,7 +72,7 @@ function shortName(n: string) {
   return s;
 }
 export function buildMessage(o: { item_id: number; keyword: string; name: string; price: number; sales: number; rating: number }, link: string) {
-  const pool = HOOKS[o.keyword] ?? GENERIC;
+  const pool = HOOKS[o.keyword] ?? (XMAS_KW.test(o.keyword) ? XMAS_GENERIC : GENERIC);
   const hook = pool[Number(o.item_id) % pool.length];
   const lines = [
     `${XMAS_KW.test(o.keyword) ? "🎄" : "🏠"} *${hook}*`,

@@ -50,15 +50,23 @@ async function mineKeyword(keyword: string) {
   return uniq.length;
 }
 
-async function mine() {
-  const kws: string[] = (await sql`select keyword from public.mm_shopee_keywords where active order by keyword`).map((x: any) => x.keyword);
+// Filtro opcional para dividir o garimpo em execuções menores (a função tem limite de tempo):
+//   campaign: "natal" | "none" (sem campanha) · niche: "casa" | "none" (sem nicho). Sem filtro = todas as palavras.
+type Scope = { campaign?: string; niche?: string };
+function col(name: "campaign" | "niche", v?: string) {
+  if (!v) return sql``;
+  return v === "none" ? sql`and ${sql(name)} is null` : sql`and ${sql(name)} = ${v}`;
+}
+async function mine(scope: Scope = {}) {
+  const kws: string[] = (await sql`select keyword from public.mm_shopee_keywords where active ${col("campaign", scope.campaign)} ${col("niche", scope.niche)} order by keyword`).map((x: any) => x.keyword);
   let saved = 0; const errors: string[] = [];
   for (let i = 0; i < kws.length; i += CONCURRENCY) {
     const batch = kws.slice(i, i + CONCURRENCY);
     const res = await Promise.allSettled(batch.map(mineKeyword));
     res.forEach((r, k) => { if (r.status === "fulfilled") saved += r.value; else errors.push(`${batch[k]}: ${(r.reason as Error)?.message}`); });
   }
-  await logRun("mine", errors.length === 0, errors.length ? `${saved} ofertas; erros: ` + errors.slice(0, 4).join(" | ") : `ok: ${saved} ofertas de ${kws.length} palavras`, { keywords: kws.length, saved, errors: errors.length });
+  const tag = scope.campaign || scope.niche ? `[${[scope.campaign && `campanha ${scope.campaign}`, scope.niche && `nicho ${scope.niche}`].filter(Boolean).join(", ")}] ` : "";
+  await logRun("mine", errors.length === 0, tag + (errors.length ? `${saved} ofertas; erros: ` + errors.slice(0, 4).join(" | ") : `ok: ${saved} ofertas de ${kws.length} palavras`), { keywords: kws.length, saved, errors: errors.length, ...scope });
   return { keywords: kws.length, saved, errors };
 }
 
@@ -87,7 +95,8 @@ Deno.serve(async (req) => {
     const out: Record<string, unknown> = {};
     // relatório primeiro (rápido), depois a mineração
     if (action === "all" || action === "conversions") out.conversions = await conversions(secret, Math.min(30, Number(b.days) || 7));
-    if (action === "all" || action === "mine") out.mine = await mine();
+    const scope: Scope = { campaign: b.campaign ? String(b.campaign) : undefined, niche: b.niche ? String(b.niche) : undefined };
+    if (action === "all" || action === "mine") out.mine = await mine(scope);
     return new Response(JSON.stringify({ ok: true, ...out }), { headers: H });
   } catch (e) {
     console.error(e);
