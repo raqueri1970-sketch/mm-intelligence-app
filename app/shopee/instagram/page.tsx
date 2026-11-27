@@ -43,6 +43,7 @@ export default function InstagramPage() {
   const [file, setFile] = useState<File | null>(null)
   const [extra, setExtra] = useState('')
   const [sending, setSending] = useState('')
+  const [link, setLink] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const loadVideos = useCallback(() => {
@@ -98,6 +99,33 @@ export default function InstagramPage() {
       loadVideos()
     } catch (e) {
       setMsg({ ok: false, text: `Não deu para enviar: ${(e as Error).message}` })
+    } finally { setSending('') }
+  }
+  async function findLink() {
+    setMsg(null)
+    if (!link.trim()) return setMsg({ ok: false, text: 'Cole o link do produto da Shopee.' })
+    try {
+      setSending('Buscando o produto…')
+      const p = await videoApi({ action: 'from-link', url: link.trim() }) as Prod
+      setProds(list => [p, ...list.filter(x => x.item_id !== p.item_id)])
+      setItemId(p.item_id); setLink('')
+      setMsg({ ok: true, text: `Achei: ${p.name}. Agora poste a foto ou envie um vídeo.` })
+    } catch (e) {
+      setMsg({ ok: false, text: `Não deu: ${(e as Error).message}` })
+    } finally { setSending('') }
+  }
+  async function postNow() {
+    setMsg(null)
+    if (!itemId) return setMsg({ ok: false, text: 'Cole o link ou escolha o produto.' })
+    try {
+      setSending('Publicando no Instagram…')
+      const r = await videoApi({ action: 'post-now', item_id: itemId }) as { permalink?: string }
+      setMsg({ ok: true, text: `Publicado no @kliccasa!${r.permalink ? ' ' + r.permalink : ''}` })
+      setItemId('')
+      supabase.from('mm_ig_posts').select('media_id,name,image,price,permalink,posted_at,media_type').order('posted_at', { ascending: false }).limit(20)
+        .then(({ data }) => data && setPosts(data as Post[]))
+    } catch (e) {
+      setMsg({ ok: false, text: `Não deu para postar: ${(e as Error).message}` })
     } finally { setSending('') }
   }
   async function cancelVideo(id: number) {
@@ -157,11 +185,18 @@ export default function InstagramPage() {
       )}
 
       <section className={s.panel}>
-        <div className={s.panelHead}><div><h2>🎬 Enviar vídeo para Reel</h2><p>Mande o vídeo do produto (por exemplo, o demonstrativo do lojista, quando ele autoriza o uso por afiliados). O editor automático deixa vertical, corta para até 45 s e coloca gancho, preço, &quot;Comente EU QUERO&quot; e @kliccasa.</p></div></div>
+        <div className={s.panelHead}><div><h2>🔗 Postar produto pelo link</h2><p>Cole o link de qualquer produto da Shopee e toque em <b>Buscar</b>. Depois escolha: <b>Postar foto agora</b> ou envie um vídeo para virar Reel. Mande o vídeo do produto (por exemplo, o demonstrativo do lojista, quando ele autoriza o uso por afiliados). O editor automático deixa vertical, corta para até 45 s e coloca gancho, preço, &quot;Comente EU QUERO&quot; e @kliccasa.</p></div></div>
         <div className={s.settings} style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
+          <label>Link da Shopee
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className={s.input} value={link} onChange={e => setLink(e.target.value)} placeholder="https://s.shopee.com.br/..." disabled={!!sending}
+                onKeyDown={e => { if (e.key === 'Enter') findLink() }} style={{ flex: 1 }} />
+              <button className={s.btn} type="button" disabled={!!sending} onClick={findLink}>BUSCAR</button>
+            </div>
+          </label>
           <label>Produto
             <select className={s.input} value={itemId} onChange={e => setItemId(e.target.value)} disabled={!!sending}>
-              <option value="">{prods.length ? 'Escolha o produto do vídeo…' : 'Carregando produtos da fila do Grupo VIP…'}</option>
+              <option value="">{prods.length ? 'Escolha o produto…' : 'Carregando produtos da fila do Grupo VIP…'}</option>
               {prods.map(p => <option key={p.item_id} value={p.item_id}>{p.name.slice(0, 80)} — {brl(Number(p.price))}</option>)}
             </select>
           </label>
@@ -175,7 +210,11 @@ export default function InstagramPage() {
             <input className={s.input} value={extra} maxLength={300} onChange={e => setExtra(e.target.value)} placeholder="Ex.: Montei em 5 minutos e ficou perfeita" disabled={!!sending} />
           </label>
         </div>
-        <div className={s.chips}><button className={s.btn} disabled={!!sending} onClick={sendVideo}>{sending || 'ENVIAR VÍDEO'}</button></div>
+        <div className={s.chips}>
+          <button className={s.btn} disabled={!!sending || !itemId} onClick={postNow}>📷 POSTAR FOTO AGORA</button>
+          <button className={s.btn} disabled={!!sending} onClick={sendVideo}>🎬 ENVIAR VÍDEO</button>
+          {sending && <span className={s.hint}>{sending}</span>}
+        </div>
         {msg && <p className={`${s.hint} ${msg.ok ? s.ok : s.err}`}>{msg.text}</p>}
         <p className={s.hint}>Sem vídeo enviado, o sistema gera sozinho um Reel de 12 s com a foto oficial do produto, para cada horário de Reel.</p>
       </section>
