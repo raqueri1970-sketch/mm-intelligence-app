@@ -297,14 +297,39 @@ async function validSignature(raw: string, header: string | null) {
   let diff = 0; for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ given.charCodeAt(i);
   return diff === 0;
 }
-// resposta privada (direct) ao comentário, com o link de afiliado do post e o Grupo VIP
+// resposta privada (direct) ao comentário, com o link de afiliado do post e o Grupo VIP.
+// Vai como "button template" (botões clicáveis, que funcionam até em pedido de mensagem ainda não aceito);
+// se a Meta recusar o modelo, cai para o texto puro com os links.
 async function sendDirect(c: any, token: string, commentId: string, p?: { name?: string; link?: string } | null) {
   const [vip] = await sql`select group_link from public.mm_vip_settings where niche = 'casa'`;
+  const recipient = JSON.stringify({ comment_id: commentId });
+  const aviso = `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`;
+  const buttons: { type: string; url: string; title: string }[] = [];
+  if (p?.link) buttons.push({ type: "web_url", url: p.link, title: "🛒 Ver na Shopee" });
+  if (vip?.group_link) buttons.push({ type: "web_url", url: vip.group_link, title: "🎁 Grupo VIP" });
+  if (buttons.length) {
+    const head = [c.reply_text];
+    if (p?.name) head.push(``, `🛒 ${clean(p.name)}`);
+    if (vip?.group_link) head.push(``, `🎁 Mais ofertas todo dia no Grupo VIP`);
+    head.push(``, aviso);
+    const text = head.join("\n").slice(0, 640);
+    try {
+      await graph(`/${c.page_id}/messages`, {
+        recipient,
+        message: JSON.stringify({ attachment: { type: "template", payload: { template_type: "button", text, buttons } } }),
+        access_token: token,
+      }, "POST");
+      await sql`update public.mm_ig_replies set replied_private = true, error = null where comment_id = ${commentId}`;
+      return;
+    } catch (e) {
+      console.error("button template recusado, enviando texto:", (e as Error).message);
+    }
+  }
   const lines = [c.reply_text];
   if (p?.name && p?.link) lines.push(``, `🛒 ${clean(p.name)}`, `👉 ${p.link}`);
   if (vip?.group_link) lines.push(``, `🎁 Mais ofertas todo dia no Grupo VIP: ${vip.group_link}`);
-  lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
-  await graph(`/${c.page_id}/messages`, { recipient: JSON.stringify({ comment_id: commentId }), message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
+  lines.push(``, aviso);
+  await graph(`/${c.page_id}/messages`, { recipient, message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
   await sql`update public.mm_ig_replies set replied_private = true, error = null where comment_id = ${commentId}`;
 }
 async function onComment(v: any) {
