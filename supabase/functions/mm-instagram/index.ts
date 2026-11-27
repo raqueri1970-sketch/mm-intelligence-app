@@ -137,7 +137,6 @@ async function fbCaption(o: any, link: string, extra?: string | null) {
   lines.push(``, `💰 ${brl(o.price)}${Number(o.rating) >= 4 ? ` · ⭐ ${Number(o.rating).toFixed(1).replace(".", ",")}` : ""} · ${Number(o.sales).toLocaleString("pt-BR")} vendidos`);
   if (link) lines.push(``, `🛒 Compre aqui: ${link}`);
   if (vip?.group_link) lines.push(`🎁 Ofertas todo dia no Grupo VIP: ${vip.group_link}`);
-  lines.push(``, `Comprando pelo link você apoia nosso trabalho, sem pagar nada a mais 💛`);
   return lines.join("\n");
 }
 // Publica na página depois do Instagram. Falha aqui nunca derruba o post do Instagram: fica em mm_ig_posts.fb_error.
@@ -303,20 +302,14 @@ async function validSignature(raw: string, header: string | null) {
 async function sendDirect(c: any, token: string, commentId: string, p?: { name?: string; link?: string } | null) {
   const [vip] = await sql`select group_link from public.mm_vip_settings where niche = 'casa'`;
   const recipient = JSON.stringify({ comment_id: commentId });
-  const aviso = `Comprando pelo link você apoia nosso trabalho, sem pagar nada a mais 💛`;
-  const convite = [
-    `🎁 Quer ver achadinhos assim antes de todo mundo?`,
-    `No nosso Grupo VIP do WhatsApp eu separo todo dia as melhores ofertas e cupons da Shopee, com preços que muitas vezes acabam em poucas horas.`,
-    `É gratuito, sem spam, e você sai quando quiser. Vai ser um prazer ter você lá! ✨`,
-  ];
+  const convite = `🎁 Quer mais ofertas assim? Entre no Grupo VIP, é grátis! ✨`;
   const buttons: { type: string; url: string; title: string }[] = [];
   if (p?.link) buttons.push({ type: "web_url", url: p.link, title: "🛒 Ver na Shopee" });
   if (vip?.group_link) buttons.push({ type: "web_url", url: vip.group_link, title: "🎁 Grupo VIP grátis" });
   if (buttons.length) {
     const head = [c.reply_text];
-    if (p?.name) head.push(``, `🛒 ${clean(p.name)}`, `É só tocar em "Ver na Shopee" aqui embaixo 👇`);
-    if (vip?.group_link) head.push(``, ...convite);
-    head.push(``, aviso);
+    if (p?.name) head.push(`🛒 ${clean(p.name)}`);
+    if (vip?.group_link) head.push(``, convite);
     const text = head.join("\n").slice(0, 640);
     try {
       await graph(`/${c.page_id}/messages`, {
@@ -331,9 +324,8 @@ async function sendDirect(c: any, token: string, commentId: string, p?: { name?:
     }
   }
   const lines = [c.reply_text];
-  if (p?.name && p?.link) lines.push(``, `🛒 ${clean(p.name)}`, `👉 ${p.link}`);
-  if (vip?.group_link) lines.push(``, ...convite, `👉 ${vip.group_link}`);
-  lines.push(``, aviso);
+  if (p?.name && p?.link) lines.push(`🛒 ${clean(p.name)}`, `👉 ${p.link}`);
+  if (vip?.group_link) lines.push(``, convite, `👉 ${vip.group_link}`);
   await graph(`/${c.page_id}/messages`, { recipient, message: JSON.stringify({ text: lines.join("\n") }), access_token: token }, "POST");
   await sql`update public.mm_ig_replies set replied_private = true, error = null where comment_id = ${commentId}`;
 }
