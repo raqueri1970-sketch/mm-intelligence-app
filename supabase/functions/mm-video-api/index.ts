@@ -104,19 +104,19 @@ async function cancel(b: any) {
 
 // ---------- produto escolhido pelo link ----------
 const APP = "https://mm-intelligence-app.vercel.app";
-// tira o ID do item de links como shopee.com.br/Nome-i.SHOP.ITEM, /product/SHOP/ITEM ou s.shopee.com.br/xxxx (segue o redirecionamento)
+// tira o ID do item de links como shopee.com.br/Nome-i.SHOP.ITEM, /product/SHOP/ITEM, /opaanlp/SHOP/ITEM ou s.shopee.com.br/xxxx (segue o redirecionamento)
 async function itemIdFrom(raw: string) {
   let url = raw.trim();
   for (let hop = 0; hop < 6; hop++) {
     const dec = (() => { try { return decodeURIComponent(decodeURIComponent(url)); } catch { return url; } })();
-    const m = dec.match(/-i\.(\d+)\.(\d+)/) || dec.match(/\/product\/(\d+)\/(\d+)/) || dec.match(/[?&]itemid=(\d+)/i);
+    const m = dec.match(/-i\.(\d+)\.(\d+)/) || dec.match(/shopee\.com\.br\/[a-z-]+\/(\d{4,})\/(\d{6,})/i) || dec.match(/[?&]itemid=(\d+)/i);
     if (m) return m[2] ?? m[1];
     if (!/^https?:\/\//.test(url)) break;
     const r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15000), headers: { "User-Agent": "Mozilla/5.0" } });
     const loc = r.headers.get("location");
     if (!loc) {
       const html = await r.text().catch(() => "");
-      const h = html.match(/-i\.(\d+)\.(\d+)/) || html.match(/\/product\/(\d+)\/(\d+)/);
+      const h = html.match(/-i\.(\d+)\.(\d+)/) || html.match(/shopee\.com\.br\/[a-z-]+\/(\d{4,})\/(\d{6,})/i);
       if (h) return h[2];
       break;
     }
