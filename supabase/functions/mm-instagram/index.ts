@@ -234,9 +234,9 @@ async function postReel(c: any, token: string, v: any) {
 }
 
 // ---------- foto ----------
-async function postPhoto(c: any, token: string) {
-  // melhor oferta do dia que não foi postada nos últimos 10 dias e não está reservada para um Reel
-  const [o] = await sql`
+async function postPhoto(c: any, token: string, itemId?: string) {
+  // item escolhido no painel (link colado) ou a melhor oferta do dia que não foi postada nos últimos 10 dias e não está reservada para um Reel
+  let [o] = itemId ? [null] : await sql`
     select q.item_id, q.keyword, q.name, q.image, q.price::float8 price, q.sales, q.rating::float8 rating, q.product_link, q.affiliate_link
       from public.mm_vip_queue q
      where q.niche = 'casa' and q.status <> 'cancelado' and q.image is not null
@@ -244,8 +244,13 @@ async function postPhoto(c: any, token: string) {
        and not exists (select 1 from public.mm_ig_posts p where p.item_id = q.item_id and p.posted_at > now() - interval '10 days')
        and not exists (select 1 from public.mm_ig_videos v where v.item_id = q.item_id and v.status in ('editar','editando','pronto','processando'))
      order by q.commission desc, q.sales desc limit 1`;
+  if (itemId) {
+    o = await product(itemId);
+    if (!o) return { skipped: "produto não encontrado" };
+    if (!o.image) throw new Error("o produto não tem foto");
+  }
   if (!o) return { skipped: "nenhuma oferta nova na fila de hoje" };
-  const link = await linkFor(o, "post");
+  const link = itemId && o.keyword === "link" ? o.affiliate_link : await linkFor(o, "post");
   const cap = caption(o);
   const created = await graph(`/${c.ig_user_id}/media`, { image_url: o.image, caption: cap, access_token: token }, "POST");
   for (let i = 0; i < 10; i++) {
@@ -264,15 +269,15 @@ async function postPhoto(c: any, token: string) {
 }
 
 // ---------- rodada híbrida ----------
-async function post(opts: { force: boolean; inSlot: boolean; slot: string; type?: string }) {
+async function post(opts: { force: boolean; inSlot: boolean; slot: string; type?: string; itemId?: string }) {
   const c = await config();
   if (!c.ig_user_id) return { skipped: "Instagram ainda não conectado" };
   const token = await secret("mm_meta_page_token");
   const finished = await finishPending(c, token);
   if (!opts.inSlot) return { skipped: "fora do horário", finished };
   if (!c.posting_enabled && !opts.force) return { skipped: "posts automáticos desligados no painel", finished };
-  if (finished.some((f: any) => f.posted)) return { finished }; // o Reel atrasado já ocupou este horário
-  const reelSlot = opts.type ? opts.type === "reel" : (c.reel_slots || []).includes(opts.slot);
+  if (!opts.itemId && finished.some((f: any) => f.posted)) return { finished }; // o Reel atrasado já ocupou este horário
+  const reelSlot = opts.itemId ? false : opts.type ? opts.type === "reel" : (c.reel_slots || []).includes(opts.slot);
   if (reelSlot) {
     // vídeo enviado no painel primeiro, depois o gerado das fotos; sem vídeo pronto → foto
     const [v] = await sql`select * from public.mm_ig_videos where status = 'pronto' order by (source = 'manual') desc, created_at limit 1`;
@@ -281,7 +286,7 @@ async function post(opts: { force: boolean; inSlot: boolean; slot: string; type?
       if (r) return { ...r, finished };
     }
   }
-  return { ...(await postPhoto(c, token)), finished };
+  return { ...(await postPhoto(c, token, opts.itemId)), finished };
 }
 
 // ---------- comentários (webhook da Meta) ----------
@@ -403,7 +408,7 @@ Deno.serve(async (req) => {
           // o cron roda de hora em hora; só posta nos horários configurados (b.force publica agora; b.type força "reel" ou "foto")
           const slot = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(11, 13) + ":00";
           const inSlot = Boolean(b.force) || (c.post_slots || []).includes(slot);
-          return json({ ok: true, slot, ...(await post({ force: Boolean(b.force), inSlot, slot, type: b.type })) });
+          return json({ ok: true, slot, ...(await post({ force: Boolean(b.force), inSlot, slot, type: b.type, itemId: /^\d+$/.test(String(b.item_id || "")) ? String(b.item_id) : undefined })) });
         }
         return json({ ok: false, error: "ação desconhecida" }, 400);
       } catch (e) {

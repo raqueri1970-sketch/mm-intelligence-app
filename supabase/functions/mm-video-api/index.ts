@@ -5,6 +5,8 @@
 //     {action:"upload-url", filename}             → URL assinada para subir o vídeo bruto (pasta raw/)
 //     {action:"submit", item_id, path, caption_extra?} → coloca o vídeo na fila de edição (status "editar")
 //     {action:"cancel", id}                       → tira um vídeo da fila
+//     {action:"from-link", url}                   → produto de qualquer link da Shopee (vira opção no envio de vídeo)
+//     {action:"post-now", item_id}                → publica agora a foto do produto no @kliccasa (até 4 por dia)
 //   Editor automático (GitHub Actions do repositório mm-intelligence-app, token OIDC do GitHub; ou x-mm-cron):
 //     {action:"jobs"}                             → pega vídeos enviados para editar + produtos para gerar Reel das fotos
 //     {action:"final-url", id}                    → URLs assinadas para subir o vídeo final e a capa
@@ -86,7 +88,7 @@ async function submit(b: any) {
   if (!/^\d+$/.test(itemId)) throw new Error("escolha o produto");
   if (!/^raw\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.(mp4|mov)$/.test(path)) throw new Error("arquivo inválido");
   const [p] = await sql`select name from public.mm_vip_queue where item_id = ${itemId} order by created_at desc limit 1`;
-  if (!p) throw new Error("produto não está na fila do Grupo VIP");
+  if (!p) throw new Error("produto não encontrado; busque pelo link de novo");
   const dir = path.split("/").slice(0, 2).join("/");
   const { data: files } = await storage.list(dir, { search: path.split("/")[2] });
   if (!files?.length) throw new Error("o vídeo não chegou no armazenamento; envie de novo");
@@ -98,6 +100,71 @@ async function submit(b: any) {
 async function cancel(b: any) {
   await sql`update public.mm_ig_videos set status = 'cancelado', updated_at = now() where id = ${Number(b.id)} and status in ('editar','pronto','erro')`;
   return { ok: true };
+}
+
+// ---------- produto escolhido pelo link ----------
+const APP = "https://mm-intelligence-app.vercel.app";
+// tira o ID do item de links como shopee.com.br/Nome-i.SHOP.ITEM, /product/SHOP/ITEM ou s.shopee.com.br/xxxx (segue o redirecionamento)
+async function itemIdFrom(raw: string) {
+  let url = raw.trim();
+  for (let hop = 0; hop < 6; hop++) {
+    const dec = (() => { try { return decodeURIComponent(decodeURIComponent(url)); } catch { return url; } })();
+    const m = dec.match(/-i\.(\d+)\.(\d+)/) || dec.match(/\/product\/(\d+)\/(\d+)/) || dec.match(/[?&]itemid=(\d+)/i);
+    if (m) return m[2] ?? m[1];
+    if (!/^https?:\/\//.test(url)) break;
+    const r = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15000), headers: { "User-Agent": "Mozilla/5.0" } });
+    const loc = r.headers.get("location");
+    if (!loc) {
+      const html = await r.text().catch(() => "");
+      const h = html.match(/-i\.(\d+)\.(\d+)/) || html.match(/\/product\/(\d+)\/(\d+)/);
+      if (h) return h[2];
+      break;
+    }
+    url = new URL(loc, url).toString();
+  }
+  throw new Error("não achei o produto nesse link; cole o link do produto da Shopee");
+}
+async function fromLink(b: any) {
+  const raw = String(b.url || "").trim();
+  if (!/^https:\/\/([a-z0-9-]+\.)*(shopee\.com\.br|shope\.ee)\//i.test(raw)) throw new Error("cole um link da Shopee Brasil");
+  const itemId = await itemIdFrom(raw);
+  const [have] = await sql`select item_id::text item_id, name, image, price::float8 price, keyword from public.mm_vip_queue
+    where item_id = ${itemId} and created_at > now() - interval '4 days' order by created_at desc limit 1`;
+  if (have) return have;
+  const r = await fetch(`${APP}/api/shopee/item?id=${itemId}`, { signal: AbortSignal.timeout(30000) });
+  const p = await r.json().catch(() => ({}));
+  if (!r.ok || !p.item_id) throw new Error(p.error || `Shopee HTTP ${r.status}`);
+  let link = p.affiliate_link;
+  try {
+    const s = await fetch(`${APP}/api/shopee/shortlink`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: p.product_link || raw, subIds: ["insta", "link", String(itemId)] }), signal: AbortSignal.timeout(30000) });
+    const sj = await s.json().catch(() => ({}));
+    if (s.ok && sj.shortLink) link = sj.shortLink;
+  } catch { /* fica o offerLink */ }
+  if (!link) throw new Error("a Shopee não gerou o link desse produto");
+  // fica numa fila à parte (niche "insta"): não entra no Grupo VIP nem nos posts automáticos
+  const [row] = await sql`insert into public.mm_vip_queue (niche, item_id, keyword, name, image, price, sales, rating, commission, commission_rate,
+      product_link, affiliate_link, message, slot_at, status)
+    values ('insta', ${itemId}, 'link', ${p.name}, ${p.image || null}, ${p.price}, ${p.sales}, ${p.rating}, ${p.commission}, ${p.commission_rate},
+      ${p.product_link || raw}, ${link}, ${p.name}, now(), 'manual')
+    returning item_id::text item_id, name, image, price::float8 price, keyword`;
+  return row;
+}
+async function postNow(b: any) {
+  const itemId = String(b.item_id || "");
+  if (!/^\d+$/.test(itemId)) throw new Error("escolha o produto");
+  const [{ n }] = await sql`select count(*)::int n from public.mm_shopee_runs where kind = 'ig-post-link' and ok and created_at > now() - interval '1 day'`;
+  if (n >= 4) throw new Error("limite de 4 posts manuais por dia atingido");
+  const cron = await secret("mm_cron_secret");
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/mm-instagram`, {
+    method: "POST", headers: { "Content-Type": "application/json", "x-mm-cron": cron },
+    body: JSON.stringify({ action: "post", force: true, type: "foto", item_id: itemId }), signal: AbortSignal.timeout(120000),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) throw new Error(j.error || `Instagram HTTP ${r.status}`);
+  if (!j.posted) throw new Error(j.skipped || "não publicou");
+  await logRun("ig-post-link", true, `foto publicada pelo link: ${j.name}`, { media_id: j.posted, item_id: itemId });
+  return { posted: j.posted, permalink: j.permalink, name: j.name };
 }
 
 // ---------- editor ----------
@@ -178,7 +245,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "use POST" }, 405);
   try {
     const b = await req.json().catch(() => ({}));
-    const panelActions: Record<string, (b: any) => Promise<unknown>> = { products, "upload-url": uploadUrl, submit, cancel };
+    const panelActions: Record<string, (b: any) => Promise<unknown>> = { products, "upload-url": uploadUrl, submit, cancel, "from-link": fromLink, "post-now": postNow };
     const editorActions: Record<string, (b: any) => Promise<unknown>> = { jobs, "final-url": finalUrl, done, fail };
     if (panelActions[b.action]) {
       if (!(await isPanel(req)) && !(await isEditor(req))) return json({ error: "unauthorized" }, 401);
