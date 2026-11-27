@@ -3,8 +3,9 @@ import { shopeeGraphQL, ShopeeConfigError } from '@/lib/shopee-affiliate'
 
 export const dynamic = 'force-dynamic'
 
-const QUERY = `query ($itemId: Int64) {
-  productOfferV2(itemId: $itemId, page: 1, limit: 1) {
+// o ID vai direto na consulta (a API recusa o Int64 como variável: "wrong type"); já validado como só dígitos
+const query = (id: string) => `query {
+  productOfferV2(itemId: ${id}, page: 1, limit: 1) {
     nodes { itemId productName price sales ratingStar commissionRate commission imageUrl productLink offerLink }
   }
 }`
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')?.trim() || ''
   if (!/^\d{3,20}$/.test(id)) return NextResponse.json({ error: 'ID do produto inválido.' }, { status: 400 })
   try {
-    const data = await shopeeGraphQL<{ productOfferV2?: { nodes?: Node[] } }>(QUERY, { itemId: Number(id) })
+    const data = await shopeeGraphQL<{ productOfferV2?: { nodes?: Node[] } }>(query(id), {})
     const p = data.productOfferV2?.nodes?.[0]
     if (!p) return NextResponse.json({ error: 'Produto não encontrado no programa de afiliados da Shopee.' }, { status: 404 })
     const price = n(p.price)
