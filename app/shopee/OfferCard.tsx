@@ -5,7 +5,17 @@ import { brl, type Product } from './shared'
 import InstaShare from './InstaShare'
 
 // Cartão de produto da Shopee usado nas telas Natal e Em alta: foto, preço, vendas, comissão
-// e os botões COPIAR LINK (gera link curto com Sub ID), WHATSAPP, COPIAR TEXTO e VER NA SHOPEE.
+// e os botões POSTAR NO INSTA (publica a foto agora no @kliccasa), COPIAR LINK (gera link curto com Sub ID),
+// WHATSAPP, COPIAR TEXTO e VER NA SHOPEE.
+
+const VIDEO_API = 'https://tazyeczbbgspqbyluynf.supabase.co/functions/v1/mm-video-api'
+const PUBLISHABLE_KEY = 'sb_publishable_olCaCIksSYJGOaAYInXHeA_2pm-gaoF'
+async function videoApi(body: Record<string, unknown>) {
+  const res = await fetch(VIDEO_API, { method: 'POST', headers: { 'content-type': 'application/json', apikey: PUBLISHABLE_KEY }, body: JSON.stringify(body) })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`)
+  return json
+}
 
 export type OfferItem = {
   item_id: number; keyword: string; name: string; price: number; sales: number; rating: number
@@ -43,6 +53,22 @@ export default function OfferCard({ it, sub, emoji }: { it: OfferItem; sub: stri
   const [link, setLink] = useState('')
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<'' | 'link' | 'msg'>('')
+  // POSTAR NO INSTA: 1º toque pede confirmação, 2º publica (é público e não dá para desfazer pelo app)
+  const [insta, setInsta] = useState<'' | 'confirm' | 'posting' | 'ok' | 'err'>('')
+  const [instaMsg, setInstaMsg] = useState('')
+  async function postInsta() {
+    if (insta === 'posting' || insta === 'ok') return
+    if (insta !== 'confirm') { setInsta('confirm'); setTimeout(() => setInsta(v => (v === 'confirm' ? '' : v)), 6000); return }
+    setInsta('posting'); setInstaMsg('')
+    try {
+      const url = it.product_link || `https://shopee.com.br/product/0000/${it.item_id}`
+      const p = await videoApi({ action: 'from-link', url }) as { item_id: string }
+      const r = await videoApi({ action: 'post-now', item_id: p.item_id }) as { permalink?: string }
+      setInsta('ok'); setInstaMsg(r.permalink || '')
+    } catch (e) {
+      setInsta('err'); setInstaMsg((e as Error).message)
+    }
+  }
 
   // Gera (uma vez) o link curto com Sub ID <sub>/app/<item>; se a Shopee falhar, usa o link de afiliado padrão.
   async function linkFor() {
@@ -86,8 +112,14 @@ export default function OfferCard({ it, sub, emoji }: { it: OfferItem; sub: stri
           <span className={s.xTag}>{it.keyword}</span>
         </div>
         {link && <small className={s.xLink}>{link}</small>}
+        {insta === 'ok' && <small className={s.ok}>Publicado no @kliccasa ✓ {instaMsg && <a href={instaMsg} target="_blank" rel="noopener noreferrer">ver post</a>}</small>}
+        {insta === 'err' && <small className={s.err}>Não postou: {instaMsg}</small>}
       </div>
       <div className={s.xActions}>
+        <button className={s.btn} disabled={insta === 'posting' || insta === 'ok'} onClick={postInsta}
+          style={insta === 'confirm' ? { background: '#e1306c', borderColor: '#e1306c', color: '#fff' } : undefined}>
+          {insta === 'posting' ? 'POSTANDO…' : insta === 'ok' ? 'POSTADO ✓' : insta === 'confirm' ? 'TOQUE DE NOVO P/ POSTAR' : '📸 POSTAR NO INSTA'}
+        </button>
         <InstaShare p={{ name: it.name, price: it.price, sales: it.sales, rating: it.rating, image: it.image, keyword: it.keyword }} />
         <button className={s.btn} disabled={busy} onClick={() => act('link')}>{busy ? 'GERANDO…' : done === 'link' ? 'LINK COPIADO ✓' : 'COPIAR LINK'}</button>
         <button className={`${s.btn} ${s.btnGhost}`} disabled={busy} onClick={() => act('zap')}>WHATSAPP ↗</button>
