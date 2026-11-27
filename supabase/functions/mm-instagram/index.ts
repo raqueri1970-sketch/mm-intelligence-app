@@ -137,7 +137,7 @@ async function fbCaption(o: any, link: string, extra?: string | null) {
   lines.push(``, `💰 ${brl(o.price)}${Number(o.rating) >= 4 ? ` · ⭐ ${Number(o.rating).toFixed(1).replace(".", ",")}` : ""} · ${Number(o.sales).toLocaleString("pt-BR")} vendidos`);
   if (link) lines.push(``, `🛒 Compre aqui: ${link}`);
   if (vip?.group_link) lines.push(`🎁 Ofertas todo dia no Grupo VIP: ${vip.group_link}`);
-  lines.push(``, `(link de afiliado: posso ganhar comissão, sem custo a mais pra você)`);
+  lines.push(``, `Comprando pelo link você apoia nosso trabalho, sem pagar nada a mais 💛`);
   return lines.join("\n");
 }
 // Publica na página depois do Instagram. Falha aqui nunca derruba o post do Instagram: fica em mm_ig_posts.fb_error.
