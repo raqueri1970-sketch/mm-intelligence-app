@@ -6,7 +6,7 @@
 //     {action:"submit", item_id, path, caption_extra?} → coloca o vídeo na fila de edição (status "editar")
 //     {action:"cancel", id}                       → tira um vídeo da fila
 //     {action:"from-link", url}                   → produto de qualquer link da Shopee (vira opção no envio de vídeo)
-//     {action:"post-now", item_id}                → publica agora a foto do produto no @kliccasa (até 4 por dia)
+//     {action:"post-now", item_id}                → publica agora a foto do produto no @kliccasa (até 10 por dia)
 //   Editor automático (GitHub Actions do repositório mm-intelligence-app, token OIDC do GitHub; ou x-mm-cron):
 //     {action:"jobs"}                             → pega vídeos enviados para editar + produtos para gerar Reel das fotos
 //     {action:"final-url", id}                    → URLs assinadas para subir o vídeo final e a capa
@@ -153,8 +153,8 @@ async function fromLink(b: any) {
 async function postNow(b: any) {
   const itemId = String(b.item_id || "");
   if (!/^\d+$/.test(itemId)) throw new Error("escolha o produto");
-  const [{ n }] = await sql`select count(*)::int n from public.mm_shopee_runs where kind = 'ig-post-link' and ok and created_at > now() - interval '1 day'`;
-  if (n >= 4) throw new Error("limite de 4 posts manuais por dia atingido");
+  const [{ n }] = await sql`select count(*)::int n from public.mm_shopee_runs where kind = 'ig-post-link' and ok and ran_at > now() - interval '1 day'`;
+  if (n >= 10) throw new Error("limite de 10 posts manuais por dia atingido");
   const cron = await secret("mm_cron_secret");
   const r = await fetch(`${SUPABASE_URL}/functions/v1/mm-instagram`, {
     method: "POST", headers: { "Content-Type": "application/json", "x-mm-cron": cron },
